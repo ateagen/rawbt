@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin POS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body { margin:0; font-family:sans-serif; background:#e0f7ff; }
+header { background:#0288d1; color:white; padding:10px; text-align:center; }
+.container { padding:20px; }
+h2 { color:#01579b; margin-top:20px; }
+table { width:100%; border-collapse:collapse; margin-top:10px; font-size:14px; }
+th, td { border:1px solid #ccc; padding:6px; text-align:center; }
+th { background:#b3e5fc; }
+button { background:#0288d1; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; }
+button:hover { background:#0277bd; }
+input, select { padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:6px; }
+.overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; }
+.popup { background:white; padding:20px; border-radius:10px; width:320px; max-width:90%; }
+.popup h3 { margin-top:0; }
+.hidden { display:none; }
+#loading { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.7); align-items:center; justify-content:center; font-size:20px; color:#0288d1; }
+.btn1 { background-color: #30596e; color: white; border: none; }
+.controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+.menu-thumb { width:60px; height:60px; object-fit:cover; border-radius:6px; display:block; margin:0 auto; }
+
+/* Tambahan kecil untuk form nama resto */
+#form-nama-resto { margin:10px auto; text-align:center; }
+#form-nama-resto input { width:220px; padding:6px; border-radius:6px; border:1px solid #ccc; margin-left:8px; }
+#form-nama-resto span { font-weight:bold; color:#fff; margin-right:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Admin POS</h1>
+  <button class="btn1" onclick="logout()" style="position:absolute; right:10px; top:10px;">Kembali</button>
+
+  <!-- Tambahan: Form ubah nama resto (tidak mengganggu tampilan lain) -->
+  <div id="form-nama-resto" style="position:relative; margin-top:10px;">
+    <span>Nama Resto:</span>
+    <input type="text" id="nama-resto-input" placeholder="RESTO BUNDA RITA">
+    <button onclick="ubahNamaResto()" style="margin-left:8px;">Simpan</button>
+  </div>
+</header>
+
+<div id="loading">⏳ Loading...</div>
+
+<div class="container hidden" id="dashboard">
+
+  <!-- Form Akun -->
+  <h2>Manajemen Akun</h2>
+  <form id="form-akun">
+    <input type="text" id="akun-username" placeholder="Username" required>
+    <input type="password" id="akun-password" placeholder="Password" required>
+    <select id="akun-role">
+      <option value="admin">Admin</option>
+      <option value="kasir">Kasir</option>
+    </select>
+    <button type="submit">Tambah Akun</button>
+  </form>
+  <table>
+    <thead>
+      <tr><th>Username</th><th>Password</th><th>Role</th><th>Aksi</th></tr>
+    </thead>
+    <tbody id="tabel-akun"></tbody>
+  </table>
+
+  <!-- Form Menu -->
+  <h2>Manajemen Menu</h2>
+  <form id="form-menu">
+    <input type="text" id="menu-nama" placeholder="Nama Menu" required>
+    <input type="number" id="menu-harga" placeholder="Harga" required>
+    <select id="menu-kategori">
+      <option value="Makanan">Makanan</option>
+      <option value="Minuman">Minuman</option>
+      <option value="Cemilan">Cemilan</option>
+    </select>
+    <input type="file" id="menu-gambar" accept="image/*">
+    <button type="submit">Tambah Menu</button>
+  </form>
+  <table>
+    <thead>
+      <tr><th>Nama</th><th>Harga</th><th>Kategori</th><th>Gambar</th><th>Aksi</th></tr>
+    </thead>
+    <tbody id="tabel-menu"></tbody>
+  </table>
+
+  <!-- FILTER -->
+  <h2>Filter Transaksi</h2>
+  <div class="controls">
+    <label>Dari: <input type="date" id="filter-tgl-awal"></label>
+    <label>Sampai: <input type="date" id="filter-tgl-akhir"></label>
+    <button onclick="downloadTransaksi()">Download Laporan</button>
+  </div>
+
+  <!-- Tombol Hapus -->
+  <h2>Manajemen Data</h2>
+  <button onclick="hapus3BulanConfirm()">Hapus Data > 3 Bulan</button>
+  <button onclick="hapusSemuaConfirm()">Hapus Semua Transaksi</button>
+
+  <!-- Tabel Total -->
+  <h2>Total</h2>
+  <table>
+    <thead id="thead-total">
+      <tr><th>Tanggal</th><th>Total Penjualan</th><th>Total Pengeluaran</th><th>Kas Akhir</th></tr>
+    </thead>
+    <tbody id="tabel-total"></tbody>
+  </table>
+
+  <!-- Tabel Detail -->
+  <h2>Detail Transaksi</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Tanggal</th><th>Kasir</th><th>Menu/Keterangan</th>
+        <th>Harga</th><th>Jenis</th><th>Subtotal</th><th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody id="tabel-detail"></tbody>
+  </table>
+</div>
+
+<!-- Popup Login -->
+<div class="overlay" id="login-overlay">
+  <div class="popup">
+    <h3>Login Admin</h3>
+    <input type="text" id="login-user" placeholder="Username"><br>
+    <input type="password" id="login-pass" placeholder="Password"><br>
+    <button onclick="login()">Login</button>
+  </div>
+</div>
+
+<!-- Popup Konfirmasi -->
+<div class="overlay" id="confirm-overlay">
+  <div class="popup">
+    <h3 id="confirm-text">Yakin?</h3>
+    <div id="extra-inputs"></div>
+    <button id="confirm-yes">Ya</button>
+    <button onclick="closeConfirm()">Batal</button>
+  </div>
+</div>
+
+<script>
+// KONFIGURASI SUPABASE
+const SUPABASE_URL = "https://dxcaivedoitovhjtyhxe.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Qw4tlM2CtchoDM4TDGWPkA_gCeYarzs";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let tanggalAwal = new Date().toISOString().slice(0,10);
+let tanggalAkhir = new Date().toISOString().slice(0,10);
+let confirmCallback = null;
+
+function showLoading(){ document.getElementById("loading").style.display="flex"; }
+function hideLoading(){ document.getElementById("loading").style.display="none"; }
+
+// Tambahan fungsi ubah nama resto (menyimpan di localStorage)
+function ubahNamaResto() {
+  const nama = document.getElementById("nama-resto-input").value.trim();
+  if (!nama) return alert("Nama resto tidak boleh kosong!");
+  localStorage.setItem("namaResto", nama);
+  alert("Nama resto berhasil diperbarui!");
+}
+
+// Saat halaman dimuat, tampilkan nama resto terakhir di input (default RESTO BUNDA RITA)
+document.addEventListener("DOMContentLoaded", ()=>{
+  const saved = localStorage.getItem("namaResto") || "RESTO BUNDA RITA";
+  document.getElementById("nama-resto-input").value = saved;
+});
+
+// LOGIN
+async function login() {
+  const u = document.getElementById("login-user").value;
+  const p = document.getElementById("login-pass").value;
+  showLoading();
+  const { data, error } = await supabase.from("akun").select("*")
+    .eq("username",u).eq("password",p).eq("role","admin").single();
+  hideLoading();
+  if (error || !data) return alert("Login gagal!");
+  document.getElementById("login-overlay").style.display="none";
+  document.getElementById("dashboard").classList.remove("hidden");
+
+  // ✅ set default tanggal hari ini saat pertama login
+  document.getElementById("filter-tgl-awal").value = tanggalAwal;
+  document.getElementById("filter-tgl-akhir").value = tanggalAkhir;
+
+  // Panggil data dengan filter hari ini
+  loadAkun(); loadMenu(); loadTotal(); loadDetail();
+}
+function logout(){ location.href="index.html"; }
+
+// AKUN
+async function loadAkun(){
+  showLoading();
+  const { data } = await supabase.from("akun").select("*").order("created_at",{ascending:false});
+  hideLoading();
+  const tbody = document.getElementById("tabel-akun");
+  tbody.innerHTML = "";
+  data.forEach(a=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${a.username}</td><td>${a.password}</td><td>${a.role}</td>
+    <td><button class="hapus-akun">Hapus</button></td>`;
+    tr.querySelector(".hapus-akun").addEventListener("click", ()=> {
+      showConfirm("Hapus akun ini?", async ()=>{
+        showLoading();
+        await supabase.from("akun").delete().eq("id", a.id);
+        hideLoading();
+        loadAkun();
+      });
+    });
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById("form-akun").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const username=document.getElementById("akun-username").value;
+  const password=document.getElementById("akun-password").value;
+  const role=document.getElementById("akun-role").value;
+  showLoading();
+  await supabase.from("akun").insert([{username,password,role}]);
+  hideLoading();
+  e.target.reset();
+  loadAkun();
+});
+
+// MENU (PERBAIKAN DISINI)
+async function loadMenu(){
+  showLoading();
+  const { data } = await supabase.from("menu").select("*").order("created_at",{ascending:false});
+  hideLoading();
+  const tbody = document.getElementById("tabel-menu");
+  tbody.innerHTML = "";
+  data.forEach(m=>{
+    const tr = document.createElement("tr");
+    const gambarCell = m.gambar ? `<img src="${m.gambar}" class="menu-thumb">` : '-';
+    tr.innerHTML = `<td>${m.nama}</td><td>Rp ${Number(m.harga).toLocaleString()}</td>
+    <td>${m.kategori}</td><td>${gambarCell}</td><td><button class="hapus-menu">Hapus</button></td>`;
+
+    // Fungsi hapus menu dan gambar
+    tr.querySelector(".hapus-menu").addEventListener("click", ()=> {
+      showConfirm("Hapus menu ini?", async ()=>{
+        showLoading();
+        try {
+          if (m.gambar) {
+            const cleanPath = m.gambar.replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/public\//, "");
+            const [bucket, ...restPath] = cleanPath.split("/");
+            const filePath = restPath.join("/");
+            if (bucket && filePath) {
+              await supabase.storage.from(bucket).remove([filePath]);
+            }
+          }
+          await supabase.from("menu").delete().eq("id", m.id);
+          loadMenu();
+        } catch (err) {
+          console.error("Gagal hapus menu:", err.message);
+        } finally {
+          hideLoading();
+        }
+      });
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("form-menu").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const nama=document.getElementById("menu-nama").value;
+  const harga=parseInt(document.getElementById("menu-harga").value);
+  const kategori=document.getElementById("menu-kategori").value;
+  const file=document.getElementById("menu-gambar").files[0];
+  let gambarUrl=null;
+  showLoading();
+  if(file){
+    const ext=file.name.split('.').pop();
+    const fileName=`${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const { error:uploadError }=await supabase.storage.from("menu-images").upload(fileName,file);
+    if(!uploadError){
+      const { data: publicUrlData } = supabase.storage.from("menu-images").getPublicUrl(fileName);
+      gambarUrl=publicUrlData.publicUrl;
+    }
+  }
+  await supabase.from("menu").insert([{nama,harga,kategori,gambar:gambarUrl}]);
+  hideLoading(); e.target.reset(); loadMenu();
+});
+
+// TOTAL (filter tanggal) - diperbaiki untuk menampilkan per tanggal + baris jumlah
+async function loadTotal() {
+  showLoading();
+  const { data, error } = await supabase.from("rekap_harian")
+    .select("*")
+    .gte("id", tanggalAwal)
+    .lte("id", tanggalAkhir)
+    .order("id", { ascending: false });
+  hideLoading();
+
+  const tbody = document.getElementById("tabel-total");
+  tbody.innerHTML = "";
+
+  if (error) {
+    console.error("Gagal memuat total:", error);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="4">Terjadi kesalahan saat memuat data</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="4">Tidak ada data pada rentang ini</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  let sumPenjualan = 0;
+  let sumPengeluaran = 0;
+  let sumKas = 0;
+
+  data.forEach(r => {
+    const penjualan = Number(r.total_penjualan || 0);
+    const pengeluaran = Number(r.total_pengeluaran || 0);
+    const kas = (typeof r.kas_akhir !== 'undefined') ? Number(r.kas_akhir || 0) : (penjualan - pengeluaran);
+
+    sumPenjualan += penjualan;
+    sumPengeluaran += pengeluaran;
+    sumKas += kas;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${new Date(r.id).toLocaleDateString("id-ID")}</td>
+      <td>Rp ${penjualan.toLocaleString()}</td>
+      <td>Rp ${pengeluaran.toLocaleString()}</td>
+      <td>Rp ${kas.toLocaleString()}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Baris jumlah keseluruhan
+  const trTotal = document.createElement("tr");
+  trTotal.style.fontWeight = "bold";
+  trTotal.innerHTML = `
+    <td>Jumlah</td>
+    <td>Rp ${Number(sumPenjualan).toLocaleString()}</td>
+    <td>Rp ${Number(sumPengeluaran).toLocaleString()}</td>
+    <td>Rp ${Number(sumKas).toLocaleString()}</td>
+  `;
+  tbody.appendChild(trTotal);
+}
+
+// DETAIL (filter tanggal)
+async function loadDetail(){
+  showLoading();
+  const start = new Date(tanggalAwal); start.setHours(0,0,0,0);
+  const end = new Date(tanggalAkhir); end.setHours(23,59,59,999);
+  const { data } = await supabase.from("transaksi_item")
+    .select("*")
+    .gte("created_at", start.toISOString())
+    .lte("created_at", end.toISOString())
+    .order("created_at",{ascending:false});
+  hideLoading();
+  const tbody=document.getElementById("tabel-detail");tbody.innerHTML="";
+  data.forEach(t=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${new Date(t.created_at).toLocaleDateString("id-ID")}</td>
+    <td>${t.kasir}</td><td>${t.menu}</td><td>Rp ${Number(t.harga).toLocaleString()}</td>
+    <td>${t.jenis}</td><td>Rp ${Number(t.subtotal).toLocaleString()}</td>
+    <td><button class="hapus-detail">Hapus</button></td>`;
+    tr.querySelector(".hapus-detail").addEventListener("click",()=>{
+      showConfirm("Hapus transaksi ini?",async()=>{
+        showLoading();
+        await supabase.from("transaksi_item").delete().eq("id",t.id);
+        hideLoading();loadDetail();loadTotal();
+      });
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+// FILTER (ubah tanggal manual)
+document.getElementById("filter-tgl-awal").addEventListener("change", e=>{tanggalAwal=e.target.value;loadTotal();loadDetail();});
+document.getElementById("filter-tgl-akhir").addEventListener("change", e=>{tanggalAkhir=e.target.value;loadTotal();loadDetail();});
+
+// DOWNLOAD
+async function downloadTransaksi(){
+  showLoading();
+  const { data: detail } = await supabase.from("transaksi_item").select("*");
+  hideLoading();
+  let csv="Tanggal;Kasir;Menu;Harga;Jenis;Subtotal\n";
+  detail.forEach(d=>{
+    csv+=`${new Date(d.created_at).toLocaleDateString("id-ID")};"${d.kasir}";"${d.menu}";${d.harga};${d.jenis};${d.subtotal}\n`;
+  });
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=`laporan.csv`;a.click();URL.revokeObjectURL(url);
+}
+
+// HAPUS MASSAL
+function hapus3BulanConfirm(){
+  showConfirm("Hapus transaksi > 3 bulan?",async()=>{
+    showLoading();
+    const cutoff=new Date();cutoff.setMonth(cutoff.getMonth()-3);
+    await supabase.from("transaksi_item").delete().lt("created_at",cutoff.toISOString());
+    hideLoading();loadDetail();loadTotal();
+  });
+}
+function hapusSemuaConfirm(){
+  showConfirm("Hapus semua transaksi?", async ()=>{
+    showLoading();
+    try {
+      await supabase.from("transaksi_item").delete().not("id", "is", null);
+      alert("Semua transaksi berhasil dihapus!");
+    } catch(err){
+      console.error("Gagal hapus semua transaksi:", err.message);
+      alert("Terjadi kesalahan saat menghapus transaksi!");
+    } finally {
+      hideLoading();
+      loadDetail();
+      loadTotal();
+    }
+  });
+}
+
+
+// KONFIRMASI
+function showConfirm(text,callback){
+  document.getElementById("confirm-text").textContent=text;
+  document.getElementById("confirm-overlay").style.display="flex";
+  confirmCallback=callback;
+  document.getElementById("confirm-yes").onclick=()=>{closeConfirm();if(confirmCallback)confirmCallback();};
+}
+function closeConfirm(){document.getElementById("confirm-overlay").style.display="none";}
+
+document.getElementById("login-overlay").style.display="flex";
+</script>
+</body>
+</html>

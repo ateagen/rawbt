@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rekap & Grafik - POS</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg: #e9f6ff;
+      --card: #ffffff;
+      --accent: #6fb7ff;
+      --text: #0b2545;
+      --muted: #4a6b8a;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;background:var(--bg);color:var(--text)}
+
+    header{padding:18px 22px;display:flex;gap:12px;align-items:center;background:linear-gradient(90deg,var(--bg),#f4fbff);border-bottom:1px solid rgba(11,37,69,0.06)}
+    .btn{background:rgb(43, 142, 199);border:1px solid rgb(15, 15, 15);padding:8px 12px;border-radius:8px;cursor:pointer}
+    .btn.primary{background:var(--accent);color:rgb(9, 10, 10);border:none}
+
+    .container{max-width:1200px;margin:20px auto;padding:12px}
+    .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+    label{font-size:13px;color:var(--muted)}
+    input[type=date]{padding:8px;border:1px solid rgba(11,37,69,0.08);border-radius:8px}
+
+    .grid{display:flex;gap:18px;flex-wrap:wrap;justify-content:space-between}
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(11,37,69,0.04);flex:1 1 480px;min-width:300px}
+
+    .charts{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+    /* ukuran grafik 40% layar: gunakan vw/vh; fallback responsive */
+    .chart-wrap{width:40vw;height:40vh;min-width:300px;background:transparent;padding:8px;border-radius:10px}
+    @media (max-width:900px){
+      .chart-wrap{width:96vw;height:40vh}
+      .card{flex:1 1 100%}
+    }
+
+    .small{font-size:13px;color:var(--muted)}
+    .center{display:flex;align-items:center;gap:10px}
+
+    .nodata{padding:20px;text-align:center;color:var(--muted)}
+    button:hover{
+      background:var(--accent);
+      color:white;
+    }
+    .btn:hover{
+      background:var(--accent);
+      color:white;
+      text-decoration-color: #f4fbff;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="btn" href="index.html">⟵ Kembali ke index</a>
+    <h2 style="margin:0;font-size:18px">Rekap & Grafik</h2>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <div class="controls">
+        <div class="center">
+          <label for="from">Dari</label>
+          <input id="from" type="date" />
+        </div>
+        <div class="center">
+          <label for="to">Ke</label>
+          <input id="to" type="date" />
+        </div>
+        <button id="apply" class="btn">Terapkan</button>
+        <button id="reset" class="btn">Refresh</button>
+        <div style="flex:1"></div>
+        <div class="small"></div>
+      </div>
+
+      <div class="charts">
+        <div class="card">
+          <h3 style="margin:6px 0">Grafik Penjualan & Pengeluaran</h3>
+          <p class="small">Per hari dalam rentang tanggal</p>
+          <div id="chart-area-line" class="chart-wrap">
+            <canvas id="lineChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:6px 0">Menu Paling Banyak Dipesan</h3>
+          <p class="small">Hanya menghitung jenis <em>penjualan</em></p>
+          <div id="chart-area-donut" class="chart-wrap">
+            <canvas id="donutChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div id="info" class="small" style="margin-top:12px"></div>
+    </div>
+  </main>
+
+  <script>
+    // Supabase credentials (dari memori proyek)
+    const SUPABASE_URL = "https://dxcaivedoitovhjtyhxe.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_Qw4tlM2CtchoDM4TDGWPkA_gCeYarzs";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Elemen
+    const fromEl = document.getElementById('from');
+    const toEl = document.getElementById('to');
+    const applyBtn = document.getElementById('apply');
+    const resetBtn = document.getElementById('reset');
+    const info = document.getElementById('info');
+
+    // Chart instances
+    let lineChart = null;
+    let donutChart = null;
+
+    function startOfMonthISO(d){
+      const dt = new Date(d.getFullYear(), d.getMonth(), 1);
+      return dt.toISOString().slice(0,10);
+    }
+    function todayISO(d){
+      return d.toISOString().slice(0,10);
+    }
+
+    function setDefaultDates(){
+      const now = new Date();
+      fromEl.value = startOfMonthISO(now);
+      toEl.value = todayISO(now);
+    }
+
+    // Aggregate data helpers
+    function isoDateOnly(ts){
+      // ts may be string or Date
+      const d = new Date(ts);
+      return d.toISOString().slice(0,10);
+    }
+
+    async function fetchTransactions(from, to){
+      // Fetch transaksi_item rows within created_at range
+      // Supabase stores created_at as timestamptz; use gte / lte
+      const { data, error } = await supabase
+        .from('transaksi_item')
+        .select('id, id_transaksi, kasir, menu, jumlah, harga, subtotal, jenis, created_at')
+        .gte('created_at', from + 'T00:00:00Z')
+        .lte('created_at', to + 'T23:59:59Z')
+        .order('created_at', { ascending: true });
+
+      if(error){
+        console.error(error);
+        throw error;
+      }
+      return data || [];
+    }
+
+    function prepareLineData(rows, from, to){
+      // build list of dates in range
+      const dateLabels = [];
+      let s = new Date(from);
+      const end = new Date(to);
+      while(s <= end){
+        dateLabels.push(s.toISOString().slice(0,10));
+        s.setDate(s.getDate()+1);
+      }
+      const penjualan = Object.fromEntries(dateLabels.map(d=>[d,0]));
+      const pengeluaran = Object.fromEntries(dateLabels.map(d=>[d,0]));
+
+      rows.forEach(r=>{
+        const d = isoDateOnly(r.created_at);
+        if(r.jenis === 'penjualan'){
+          penjualan[d] = (penjualan[d]||0) + Number(r.subtotal||0);
+        } else if(r.jenis === 'pengeluaran'){
+          pengeluaran[d] = (pengeluaran[d]||0) + Number(r.subtotal||0);
+        }
+      });
+
+      return {
+        labels: dateLabels,
+        penjualan: dateLabels.map(d=>penjualan[d]||0),
+        pengeluaran: dateLabels.map(d=>pengeluaran[d]||0)
+      };
+    }
+
+    function prepareDonutData(rows){
+      // count menu frequency for jenis='penjualan'
+      const counts = {};
+      rows.forEach(r=>{
+        if(r.jenis === 'penjualan'){
+          const name = r.menu || 'Unknown';
+          counts[name] = (counts[name]||0) + Number(r.jumlah||1);
+        }
+      });
+      // Sort by count desc
+      const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+      // take top 8, rest combined as 'Lainnya'
+      const top = entries.slice(0,8);
+      const others = entries.slice(8);
+      const labels = top.map(e=>e[0]);
+      const data = top.map(e=>e[1]);
+      if(others.length){
+        labels.push('Lainnya');
+        data.push(others.reduce((s,e)=>s+e[1],0));
+      }
+      return { labels, data };
+    }
+
+    function formatCurrency(n){
+      return n.toLocaleString('id-ID');
+    }
+
+    function renderLineChart(ctx, prepared){
+      if(lineChart) lineChart.destroy();
+      const config = {
+        type: 'line',
+        data: {
+          labels: prepared.labels,
+          datasets: [
+            {
+              label: 'Penjualan',
+              data: prepared.penjualan,
+              borderColor: 'rgba(63, 160, 255, 1)',
+              backgroundColor: 'rgba(63, 160, 255, 0.15)',
+              tension: 0.25,
+              fill: true,
+            },
+            {
+              label: 'Pengeluaran',
+              data: prepared.pengeluaran,
+              borderColor: 'rgba(20, 90, 150, 1)',
+              backgroundColor: 'rgba(20, 90, 150, 0.12)',
+              tension: 0.25,
+              fill: true,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { display: true, title: { display: true, text: 'Tanggal' } },
+            y: { display: true, title: { display: true, text: 'Rupiah' }, beginAtZero:true }
+          },
+          plugins: {legend:{position:'top'}}
+        }
+      };
+      lineChart = new Chart(ctx, config);
+    }
+
+    function renderDonutChart(ctx, prepared){
+      if(donutChart) donutChart.destroy();
+      const config = {
+        type: 'doughnut',
+        data: {
+          labels: prepared.labels,
+          datasets: [{ data: prepared.data }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {legend:{position:'right'}}
+        }
+      };
+      donutChart = new Chart(ctx, config);
+    }
+
+    async function loadAndRender(){
+      try{
+        const from = fromEl.value;
+        const to = toEl.value;
+        info.textContent = 'Memuat data...';
+        const rows = await fetchTransactions(from, to);
+        if(!rows.length){
+          info.innerHTML = `<div class="nodata">Tidak ada data pada rentang ${from} — ${to}</div>`;
+        } else {
+          // summarise totals
+          const totalPenj = rows.filter(r=>r.jenis==='penjualan').reduce((s,r)=>s+Number(r.subtotal||0),0);
+          const totalPeng = rows.filter(r=>r.jenis==='pengeluaran').reduce((s,r)=>s+Number(r.subtotal||0),0);
+          info.innerHTML = `Rentang: <strong>${from}</strong> — <strong>${to}</strong> &nbsp; | &nbsp; Total Penjualan: <strong>Rp ${formatCurrency(totalPenj)}</strong> &nbsp; | &nbsp; Total Pengeluaran: <strong>Rp ${formatCurrency(totalPeng)}</strong>`;
+        }
+
+        // prepare and render charts
+        const linePrepared = prepareLineData(rows, from, to);
+        const donutPrepared = prepareDonutData(rows);
+
+        const lineCtx = document.getElementById('lineChart').getContext('2d');
+        const donutCtx = document.getElementById('donutChart').getContext('2d');
+        renderLineChart(lineCtx, linePrepared);
+        renderDonutChart(donutCtx, donutPrepared);
+      }catch(err){
+        console.error(err);
+        info.innerHTML = '<div class="nodata">Terjadi kesalahan saat memuat data. Cek konsol.</div>';
+      }
+    }
+
+    // Events
+    applyBtn.addEventListener('click', ()=> loadAndRender());
+    resetBtn.addEventListener('click', ()=>{ setDefaultDates(); loadAndRender(); });
+
+    // Inisialisasi default
+    setDefaultDates();
+    window.addEventListener('load', ()=> loadAndRender());
+  </script>
+</body>
+</html>
