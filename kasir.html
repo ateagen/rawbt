@@ -64,7 +64,7 @@
     </div>
   </div>
 
-  <!-- Popup & komponen lainnya tetap sama -->
+  <!-- Semua popup dan spinner tetap sama seperti versi lama -->
   <div class="popup" id="loginPopup">
     <div class="popup-content">
       <h3>Login Kasir</h3>
@@ -222,7 +222,7 @@
       if (pesanan.length===0) return openNotif("Belum ada pesanan!");
       const bayar = parseInt(document.getElementById("bayar").value)||0;
       if (bayar<=0) return openNotif("Masukkan jumlah bayar!");
-      openPopup('cetakPopup');
+      openPopup('cetakPopup'); // pilih Ya/Tidak -> lanjutBayar(true/false)
     }
 
     async function lanjutBayar(cetak) {
@@ -242,6 +242,7 @@
         }]);
       }
       showSpinner(false);
+
       if (cetak) tampilkanStruk(idTransaksi);
       else { openNotif("Transaksi tersimpan!"); resetPesanan(); }
     }
@@ -299,23 +300,36 @@
 
     function escapeHtml(unsafe) { return String(unsafe).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 
-    // 🔧 Diperbarui sesuai catatan #2 & #3
+    // 🔧 Diperbarui sesuai permintaan: kirim ASCII ESC/POS langsung ke RawBT (tanpa base64)
     function printThermal(printText) {
       try {
         const ESC = '\x1B';
-        const setChar = ESC + 't' + '\x00'; // ESC t 0
-        const fullText = setChar + printText;
+        const GS = '\x1D';
 
-        // kirim ke RawBT (Android)
-        const url = "intent://print/#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;";
-        const blob = new Blob([fullText], { type: "text/plain" });
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "print.txt";
-        a.click();
+        // 1) Header ESC/POS dasar
+        let cmd = '';
+        cmd += ESC + '@';            // Initialize printer
+        cmd += ESC + 't' + '\x00';  // Select code page 0 (CH=0) - ubah jika perlu
+        // Centered header
+        cmd += ESC + 'a' + '\x01';  // Align center
+        cmd += padCenter(namaResto, 32) + '\n';
+        cmd += ESC + 'a' + '\x00';  // Align left
+        cmd += 'No: ' + new Date().getTime() + '\n'; // placeholder nomor
+        cmd += printText;
+
+        // 2) Add feed & cut (if printer supports)
+        cmd += '\n\n';
+        // GS V 1 (partial cut) or GS V 0 — beberapa printer pakai berbeda.
+        // We'll try GS V 1  (0x1D 0x56 0x01) — jika printer tidak mendukung, abaikan.
+        cmd += GS + 'V' + '\x01';
+
+        // 3) Send to RawBT using raw ASCII in URL (encoded)
+        const url = 'rawbt://print?text=' + encodeURIComponent(cmd);
+        // Redirect to RawBT (this opens RawBT and sends the data)
+        window.location.href = url;
         return true;
       } catch (err) {
-        console.error(err);
+        console.error("printThermal error:", err);
         return false;
       }
     }
