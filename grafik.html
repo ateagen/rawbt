@@ -30,11 +30,16 @@
     .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(11,37,69,0.04);flex:1 1 480px;min-width:300px}
 
     .charts{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
-    /* ukuran grafik 40% layar: gunakan vw/vh; fallback responsive */
     .chart-wrap{width:40vw;height:40vh;min-width:300px;background:transparent;padding:8px;border-radius:10px}
     @media (max-width:900px){
       .chart-wrap{width:96vw;height:40vh}
       .card{flex:1 1 100%}
+    }
+    /* Tinggi grafik disesuaikan untuk mode landscape */
+    @media (orientation: landscape) {
+      .chart-wrap {
+        height: 65vh !important;
+      }
     }
 
     .small{font-size:13px;color:var(--muted)}
@@ -98,7 +103,7 @@
   </main>
 
   <script>
-    // Supabase credentials (dari memori proyek)
+    // Supabase credentials
     const SUPABASE_URL = "https://dxcaivedoitovhjtyhxe.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Qw4tlM2CtchoDM4TDGWPkA_gCeYarzs";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -110,7 +115,6 @@
     const resetBtn = document.getElementById('reset');
     const info = document.getElementById('info');
 
-    // Chart instances
     let lineChart = null;
     let donutChart = null;
 
@@ -128,16 +132,12 @@
       toEl.value = todayISO(now);
     }
 
-    // Aggregate data helpers
     function isoDateOnly(ts){
-      // ts may be string or Date
       const d = new Date(ts);
       return d.toISOString().slice(0,10);
     }
 
     async function fetchTransactions(from, to){
-      // Fetch transaksi_item rows within created_at range
-      // Supabase stores created_at as timestamptz; use gte / lte
       const { data, error } = await supabase
         .from('transaksi_item')
         .select('id, id_transaksi, kasir, menu, jumlah, harga, subtotal, jenis, created_at')
@@ -153,7 +153,6 @@
     }
 
     function prepareLineData(rows, from, to){
-      // build list of dates in range
       const dateLabels = [];
       let s = new Date(from);
       const end = new Date(to);
@@ -180,8 +179,8 @@
       };
     }
 
+    // ✅ Versi baru: tampilkan semua menu tanpa batas
     function prepareDonutData(rows){
-      // count menu frequency for jenis='penjualan'
       const counts = {};
       rows.forEach(r=>{
         if(r.jenis === 'penjualan'){
@@ -189,17 +188,10 @@
           counts[name] = (counts[name]||0) + Number(r.jumlah||1);
         }
       });
-      // Sort by count desc
+
       const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-      // take top 8, rest combined as 'Lainnya'
-      const top = entries.slice(0,8);
-      const others = entries.slice(8);
-      const labels = top.map(e=>e[0]);
-      const data = top.map(e=>e[1]);
-      if(others.length){
-        labels.push('Lainnya');
-        data.push(others.reduce((s,e)=>s+e[1],0));
-      }
+      const labels = entries.map(e=>e[0]);
+      const data = entries.map(e=>e[1]);
       return { labels, data };
     }
 
@@ -251,7 +243,10 @@
         type: 'doughnut',
         data: {
           labels: prepared.labels,
-          datasets: [{ data: prepared.data }]
+          datasets: [{ 
+            data: prepared.data,
+            backgroundColor: prepared.labels.map((_,i)=>`hsl(${i*40%360},70%,60%)`)
+          }]
         },
         options: {
           responsive: true,
@@ -271,13 +266,11 @@
         if(!rows.length){
           info.innerHTML = `<div class="nodata">Tidak ada data pada rentang ${from} — ${to}</div>`;
         } else {
-          // summarise totals
           const totalPenj = rows.filter(r=>r.jenis==='penjualan').reduce((s,r)=>s+Number(r.subtotal||0),0);
           const totalPeng = rows.filter(r=>r.jenis==='pengeluaran').reduce((s,r)=>s+Number(r.subtotal||0),0);
           info.innerHTML = `Rentang: <strong>${from}</strong> — <strong>${to}</strong> &nbsp; | &nbsp; Total Penjualan: <strong>Rp ${formatCurrency(totalPenj)}</strong> &nbsp; | &nbsp; Total Pengeluaran: <strong>Rp ${formatCurrency(totalPeng)}</strong>`;
         }
 
-        // prepare and render charts
         const linePrepared = prepareLineData(rows, from, to);
         const donutPrepared = prepareDonutData(rows);
 
@@ -291,11 +284,9 @@
       }
     }
 
-    // Events
     applyBtn.addEventListener('click', ()=> loadAndRender());
     resetBtn.addEventListener('click', ()=>{ setDefaultDates(); loadAndRender(); });
 
-    // Inisialisasi default
     setDefaultDates();
     window.addEventListener('load', ()=> loadAndRender());
   </script>
