@@ -37,7 +37,7 @@
   }
 
   /* Portrait HP → 3 kolom */
-  @media (max-width: 768px) and (orientation: portrait) {
+  @media (max-width: 608px) and (orientation: portrait) {
     .container { flex-direction: column; height:auto; }
     .sidebar { flex:none; width:100%; display:flex; flex-wrap:wrap; gap:5px; margin-bottom:5px; }
     .sidebar .btn { flex:1 1 calc(50% - 5px); margin:2px 0; font-size:0.8em; }
@@ -47,7 +47,7 @@
   }
 
   /* ✅ HP Landscape → tombol pindah ke atas, 4 kolom menu */
-  @media (max-width: 760px) and (orientation: landscape) {
+  @media (max-width: 768px) and (orientation: landscape) {
     .container { flex-direction: column; height:auto; }
     .sidebar {
       flex:none;
@@ -431,3 +431,4 @@
   </script>
 </body>
 </html>
+
