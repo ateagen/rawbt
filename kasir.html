@@ -4,31 +4,112 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kasir</title>
-  <style>
-    body { margin:0; font-family:sans-serif; background:#e0f7ff; color:#333; }
-    header { background:#2196f3; color:#fff; padding:10px; text-align:center; font-size:1.2em; }
-    .container { display:flex; flex-wrap:wrap; height:calc(100vh - 50px); }
-    .sidebar, .menu, .order { padding:10px; box-sizing:border-box; overflow:auto; }
-    .sidebar { flex:1; min-width:150px; background:#bbdefb; }
-    .menu { flex:2; min-width:200px; background:#e3f2fd; display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px; }
-    .order { flex:2; min-width:200px; background:#f1f8ff; display:flex; flex-direction:column; }
-    .btn { display:block; width:100%; padding:8px; margin:5px 0; background:#2196f3; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; }
-    .btn:hover { background:#1976d2; }
-    .card { background:#fff; height:150px; padding:10px; border-radius:8px; text-align:center; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
-    .card:hover { background:#e1f5fe; }
-    .card img { width:90px; height:90px; object-fit:cover; border-radius:8px; margin-bottom:5px; }
-    .order-list { flex:1; overflow:auto; margin-bottom:10px; height:100%; }
-    .order-item { display:flex; justify-content:space-between; align-items:center; padding:5px; border-bottom:1px solid #ccc; }
-    .order-item span { font-size:0.9em; }
-    .order-actions { display:flex; justify-content:space-between; gap:5px; }
-    .input, select { width:100%; padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:6px; }
-    .popup { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:10; }
-    .popup-content { background:#fff; padding:20px; border-radius:8px; max-width:350px; width:90%; text-align:center; }
-    .spinner { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); border:6px solid #ccc; border-top:6px solid #2196f3; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
-    @keyframes spin { 100% { transform:translate(-50%,-50%) rotate(360deg); } }
-    #strukPreview { text-align:left; font-size:0.9em; white-space:pre-wrap; font-family:monospace; }
-    #strukPreview hr { border:none; border-top:1px dashed #aaa; margin:5px 0; }
-  </style>
+ <style>
+  body { margin:0; font-family:sans-serif; background:#e0f7ff; color:#333; }
+  header { background:#2196f3; color:#fff; padding:10px; text-align:center; font-size:1.2em; }
+  .container { display:flex; flex-wrap:wrap; height:calc(100vh - 50px); }
+  .sidebar, .menu, .order { padding:10px; box-sizing:border-box; overflow:auto; }
+  .sidebar { flex:1; min-width:150px; background:#bbdefb; }
+  .menu { flex:2; min-width:200px; background:#e3f2fd; display:grid; gap:10px; justify-content:start; }
+  .order { flex:2; min-width:200px; background:#f1f8ff; display:flex; flex-direction:column; }
+  .btn { display:block; width:100%; padding:8px; margin:5px 0; background:#2196f3; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; }
+  .btn:hover { background:#1976d2; }
+  .card { background:#fff; height:150px; padding:10px; border-radius:8px; text-align:center; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+  .card:hover { background:#e1f5fe; }
+  .card img { width:90px; height:90px; object-fit:cover; border-radius:8px; margin-bottom:5px; }
+  .order-list { flex:1; overflow:auto; margin-bottom:10px; height:100%; width: 100%; right: 0%;}
+  .order-item { display:flex; justify-content:space-between; align-items:center; padding:5px; border-bottom:1px solid #ccc; }
+  .order-item span { font-size:0.9em; }
+  .order-actions { display:flex; justify-content:space-between; gap:5px; }
+  .input, select { width:100%; padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:6px; }
+  .popup { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:10; }
+  .popup-content { background:#fff; padding:20px; border-radius:8px; max-width:350px; width:90%; text-align:center; }
+  .spinner { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); border:6px solid #ccc; border-top:6px solid #2196f3; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
+  @keyframes spin { 100% { transform:translate(-50%,-50%) rotate(360deg); } }
+  #strukPreview { text-align:left; font-size:0.9em; white-space:pre-wrap; font-family:monospace; }
+  #strukPreview hr { border:none; border-top:1px dashed #aaa; margin:5px 0; }
+
+  /* ====================== RESPONSIVE ====================== */
+
+  /* Default desktop (tetap 4 kolom) */
+  @media (min-width: 1025px) {
+    .menu { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  /* Portrait HP → 3 kolom */
+  @media (max-width: 768px) and (orientation: portrait) {
+    .container { flex-direction: column; height:auto; }
+    .sidebar { flex:none; width:100%; display:flex; flex-wrap:wrap; gap:5px; margin-bottom:5px; }
+    .sidebar .btn { flex:1 1 calc(50% - 5px); margin:2px 0; font-size:0.8em; }
+    .menu { gap:5px; grid-template-columns: repeat(3, 1fr); }
+    .card { height:120px; font-size:0.85em; }
+    .order { width:100%; }
+  }
+
+  /* ✅ HP Landscape → tombol pindah ke atas, 4 kolom menu */
+  @media (max-width: 760px) and (orientation: landscape) {
+    .container { flex-direction: column; height:auto; }
+    .sidebar {
+      flex:none;
+      order:-1;
+      width:100%;
+      background:#bbdefb;
+      display:flex;
+      justify-content:center;
+      flex-wrap:wrap;
+      gap:5px;
+      padding:5px;
+    }
+    .sidebar .btn {
+      flex:1 1 calc(20% - 5px);
+      margin:2px;
+      font-size:0.8em;
+      padding:6px;
+    }
+    .menu {
+      grid-template-columns: repeat(4, 1fr);
+      gap:6px;
+    }
+    .card {
+      height:120px;
+      font-size:0.8em;
+    }
+    .card img {
+      width:70px;
+      height:70px;
+    }
+  }
+
+  /* ✅ Tablet Landscape (769px–1024px) → 5 kolom */
+  @media (min-width: 769px) and (max-width: 1024px) and (orientation: landscape) {
+    .sidebar {
+      flex:none;
+      order:-1;
+      width:100%;
+      display:flex;
+      justify-content:center;
+      flex-wrap:wrap;
+      gap:8px;
+      padding:8px;
+    }
+    .sidebar .btn {
+      flex:1 1 calc(16% - 8px);
+      font-size:0.9em;
+    }
+    .menu {
+      grid-template-columns: repeat(4, 1fr);
+      gap:8px;
+    }
+    .card {
+      height:130px;
+    }
+    .card img {
+      width:80px;
+      height:80px;
+    }
+  }
+</style>
+
 </head>
 <body>
   <header id="restoName">Kasir</header>
@@ -41,7 +122,6 @@
       <button class="btn" onclick="filterMenu('Minuman')">Minuman</button>
       <button class="btn" onclick="filterMenu('Cemilan')">Cemilan</button>
       <button class="btn" onclick="openPopup('pengeluaranPopup')">+ Pengeluaran</button>
-      <!-- Bagian pilih printer dihapus sesuai catatan #1 -->
       <button class="btn" onclick="logout()">⬅ Kembali</button>
     </div>
 
@@ -64,7 +144,7 @@
     </div>
   </div>
 
-  <!-- Semua popup dan spinner tetap sama seperti versi lama -->
+  <!-- Popup dan Spinner -->
   <div class="popup" id="loginPopup">
     <div class="popup-content">
       <h3>Login Kasir</h3>
@@ -183,14 +263,12 @@
     }
 
     function filterMenu(kat) { filter = kat; renderMenu(); }
-
     function tambahPesanan(menu) {
       const item = pesanan.find(p => p.nama === menu.nama);
       if (item) item.jumlah++;
       else pesanan.push({ nama: menu.nama, harga: menu.harga, jumlah:1 });
       renderPesanan();
     }
-
     function renderPesanan() {
       const list = document.getElementById("orderList");
       list.innerHTML = "";
@@ -206,10 +284,8 @@
       document.getElementById("total").innerText = totalHarga;
       hitungKembalian();
     }
-
     function hapusItem(i){ pesanan.splice(i,1); renderPesanan(); }
     function resetPesanan(){ pesanan=[]; renderPesanan(); document.getElementById("bayar").value=""; document.getElementById("diskon").value=""; document.getElementById("kembalian").innerText="0"; closePopup("resetPopup"); }
-
     function hitungKembalian() {
       const bayar = parseInt(document.getElementById("bayar").value)||0;
       const diskon = parseInt(document.getElementById("diskon").value)||0;
@@ -222,7 +298,7 @@
       if (pesanan.length===0) return openNotif("Belum ada pesanan!");
       const bayar = parseInt(document.getElementById("bayar").value)||0;
       if (bayar<=0) return openNotif("Masukkan jumlah bayar!");
-      openPopup('cetakPopup'); // pilih Ya/Tidak -> lanjutBayar(true/false)
+      openPopup('cetakPopup');
     }
 
     async function lanjutBayar(cetak) {
@@ -300,38 +376,24 @@
 
     function escapeHtml(unsafe) { return String(unsafe).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 
-    // 🔧 Diperbarui sesuai permintaan: kirim ASCII ESC/POS langsung ke RawBT (tanpa base64)
     function printThermal(printText) {
       try {
         const ESC = '\x1B';
         const GS = '\x1D';
-
-        // 1) Header ESC/POS dasar
         let cmd = '';
-        cmd += ESC + '@';            // Initialize printer
-        cmd += ESC + 't' + '\x00';  // Select code page 0 (CH=0) - ubah jika perlu
-        // Centered header
-        cmd += ESC + 'a' + '\x01';  // Align center
+        cmd += ESC + '@';
+        cmd += ESC + 't' + '\x00';
+        cmd += ESC + 'a' + '\x01';
         cmd += padCenter(namaResto, 32) + '\n';
-        cmd += ESC + 'a' + '\x00';  // Align left
-        cmd += 'No: ' + new Date().getTime() + '\n'; // placeholder nomor
+        cmd += ESC + 'a' + '\x00';
+        cmd += 'No: ' + new Date().getTime() + '\n';
         cmd += printText;
-
-        // 2) Add feed & cut (if printer supports)
         cmd += '\n\n';
-        // GS V 1 (partial cut) or GS V 0 — beberapa printer pakai berbeda.
-        // We'll try GS V 1  (0x1D 0x56 0x01) — jika printer tidak mendukung, abaikan.
         cmd += GS + 'V' + '\x01';
-
-        // 3) Send to RawBT using raw ASCII in URL (encoded)
         const url = 'rawbt://print?text=' + encodeURIComponent(cmd);
-        // Redirect to RawBT (this opens RawBT and sends the data)
         window.location.href = url;
         return true;
-      } catch (err) {
-        console.error("printThermal error:", err);
-        return false;
-      }
+      } catch (err) { console.error("printThermal error:", err); return false; }
     }
 
     function cetakStruk(){
