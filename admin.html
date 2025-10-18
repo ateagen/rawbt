@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 body { margin:0; font-family:sans-serif; background:#e0f7ff; }
-header { background:#0288d1; color:white; padding:10px; text-align:center; }
+header { background:#0288d1; color:white; padding:10px; text-align:center; position:relative; }
 .container { padding:20px; }
 h2 { color:#01579b; margin-top:20px; }
 table { width:100%; border-collapse:collapse; margin-top:10px; font-size:14px; }
@@ -20,7 +20,7 @@ input, select { padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:
 .popup { background:white; padding:20px; border-radius:10px; width:320px; max-width:90%; }
 .popup h3 { margin-top:0; }
 .hidden { display:none; }
-#loading { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.7); align-items:center; justify-content:center; font-size:20px; color:#0288d1; }
+#loading { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.7); align-items:center; justify-content:center; font-size:20px; color:#0288d1; z-index:9998; }
 .btn1 { background-color: #30596e; color: white; border: none; }
 .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
 .menu-thumb { width:60px; height:60px; object-fit:cover; border-radius:6px; display:block; margin:0 auto; }
@@ -29,6 +29,23 @@ input, select { padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:
 #form-nama-resto { margin:10px auto; text-align:center; }
 #form-nama-resto input { width:220px; padding:6px; border-radius:6px; border:1px solid #ccc; margin-left:8px; }
 #form-nama-resto span { font-weight:bold; color:#fff; margin-right:6px; }
+
+/* Modal popup global */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.45); z-index: 10000; }
+.modal.hidden { display: none; }
+.modal-card { background: #fff; border-radius: 10px; padding: 18px; width: 92%; max-width: 400px; text-align: left; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+.modal-card h3 { margin:0 0 8px 0; }
+.modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+.modal-actions button { padding:8px 14px; border-radius:6px; border:none; cursor:pointer; font-weight:600; }
+.btn-cancel { background:#ddd; color:#222; }
+.btn-ok { background:#0288d1; color:#fff; }
+.btn-danger { background:#dc3545; color:#fff; }
+
+/* small responsive tweak for landscape phones */
+@media (orientation: landscape) and (max-width: 900px) {
+  .container { padding:12px; }
+  table { font-size:13px; }
+}
 </style>
 </head>
 <body>
@@ -70,7 +87,7 @@ input, select { padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:
   <h2>Manajemen Menu</h2>
   <form id="form-menu">
     <input type="text" id="menu-nama" placeholder="Nama Menu" required>
-    <input type="number" id="menu-harga" placeholder="Harga" required>
+    <input type="number" id="menu-harga" placeholder="Harga" required min="1">
     <select id="menu-kategori">
       <option value="Makanan">Makanan</option>
       <option value="Minuman">Minuman</option>
@@ -91,7 +108,7 @@ input, select { padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:
   <div class="controls">
     <label>Dari: <input type="date" id="filter-tgl-awal"></label>
     <label>Sampai: <input type="date" id="filter-tgl-akhir"></label>
-    <button onclick="downloadTransaksi()">Download Laporan</button>
+    <button id="download-btn" onclick="downloadTransaksi()">Download Laporan</button>
   </div>
 
   <!-- Tombol Hapus -->
@@ -121,7 +138,7 @@ input, select { padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:
   </table>
 </div>
 
-<!-- Popup Login -->
+<!-- Popup Login (tetap) -->
 <div class="overlay" id="login-overlay">
   <div class="popup">
     <h3>Login Admin</h3>
@@ -131,13 +148,15 @@ input, select { padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:
   </div>
 </div>
 
-<!-- Popup Konfirmasi -->
-<div class="overlay" id="confirm-overlay">
-  <div class="popup">
-    <h3 id="confirm-text">Yakin?</h3>
-    <div id="extra-inputs"></div>
-    <button id="confirm-yes">Ya</button>
-    <button onclick="closeConfirm()">Batal</button>
+<!-- Modal global (info + confirm) -->
+<div id="modalPopup" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <h3 id="modalTitle">Info</h3>
+    <div id="modalMessage" style="white-space:pre-wrap; margin-top:8px;">Pesan</div>
+    <div class="modal-actions" id="modalActions">
+      <button id="modalCancel" class="btn-cancel">Tutup</button>
+      <button id="modalOk" class="btn-ok">Ok</button>
+    </div>
   </div>
 </div>
 
@@ -149,288 +168,434 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let tanggalAwal = new Date().toISOString().slice(0,10);
 let tanggalAkhir = new Date().toISOString().slice(0,10);
-let confirmCallback = null;
 
-function showLoading(){ document.getElementById("loading").style.display="flex"; }
+// Utility: loading
+function showLoading(){ const el=document.getElementById("loading"); el.style.display="flex"; el.style.alignItems="center"; el.style.justifyContent="center"; }
 function hideLoading(){ document.getElementById("loading").style.display="none"; }
 
-// Tambahan fungsi ubah nama resto (menyimpan di localStorage)
-function ubahNamaResto() {
+// Modal reusable: showInfo(title,msg) and showConfirm(title,msg) -> Promise
+function showInfo(title, message) {
+  return new Promise(resolve => {
+    const modal = document.getElementById("modalPopup");
+    document.getElementById("modalTitle").textContent = title || "Info";
+    document.getElementById("modalMessage").textContent = message || "";
+    const ok = document.getElementById("modalOk");
+    const cancel = document.getElementById("modalCancel");
+    // For info - show only Ok (cancel acts as close)
+    ok.style.display = "inline-block";
+    ok.textContent = "Ok";
+    cancel.style.display = "inline-block";
+    cancel.textContent = "Tutup";
+    modal.classList.remove("hidden");
+    function cleanup() {
+      ok.onclick = null;
+      cancel.onclick = null;
+      modal.classList.add("hidden");
+      resolve();
+    }
+    ok.onclick = cleanup;
+    cancel.onclick = cleanup;
+  });
+}
+function showConfirm(title, message) {
+  return new Promise(resolve => {
+    const modal = document.getElementById("modalPopup");
+    document.getElementById("modalTitle").textContent = title || "Konfirmasi";
+    document.getElementById("modalMessage").textContent = message || "";
+    const ok = document.getElementById("modalOk");
+    const cancel = document.getElementById("modalCancel");
+    ok.style.display = "inline-block";
+    ok.textContent = "Ya";
+    cancel.style.display = "inline-block";
+    cancel.textContent = "Batal";
+    modal.classList.remove("hidden");
+    function cleanup(result) {
+      ok.onclick = null;
+      cancel.onclick = null;
+      modal.classList.add("hidden");
+      resolve(result);
+    }
+    ok.onclick = () => cleanup(true);
+    cancel.onclick = () => cleanup(false);
+  });
+}
+
+// Tambahan fungsi ubah nama resto (menyimpan di localStorage) -> pakai modal
+async function ubahNamaResto() {
   const nama = document.getElementById("nama-resto-input").value.trim();
-  if (!nama) return alert("Nama resto tidak boleh kosong!");
+  if (!nama) { await showInfo("Kesalahan", "Nama resto tidak boleh kosong!"); return; }
   localStorage.setItem("namaResto", nama);
-  alert("Nama resto berhasil diperbarui!");
+  await showInfo("Berhasil", "Nama resto berhasil diperbarui!");
 }
 
 // Saat halaman dimuat, tampilkan nama resto terakhir di input (default RESTO BUNDA RITA)
 document.addEventListener("DOMContentLoaded", ()=>{
   const saved = localStorage.getItem("namaResto") || "RESTO BUNDA RITA";
   document.getElementById("nama-resto-input").value = saved;
+
+  // set default tanggal filter dan show login overlay
+  document.getElementById("filter-tgl-awal").value = tanggalAwal;
+  document.getElementById("filter-tgl-akhir").value = tanggalAkhir;
+  document.getElementById("login-overlay").style.display="flex";
 });
 
 // LOGIN
 async function login() {
-  const u = document.getElementById("login-user").value;
-  const p = document.getElementById("login-pass").value;
+  const u = document.getElementById("login-user").value.trim();
+  const p = document.getElementById("login-pass").value.trim();
+  if(!u || !p) { await showInfo("Gagal", "Username & password harus diisi."); return; }
   showLoading();
-  const { data, error } = await supabase.from("akun").select("*")
-    .eq("username",u).eq("password",p).eq("role","admin").single();
-  hideLoading();
-  if (error || !data) return alert("Login gagal!");
-  document.getElementById("login-overlay").style.display="none";
-  document.getElementById("dashboard").classList.remove("hidden");
-
-  // ✅ set default tanggal hari ini saat pertama login
-  document.getElementById("filter-tgl-awal").value = tanggalAwal;
-  document.getElementById("filter-tgl-akhir").value = tanggalAkhir;
-
-  // Panggil data dengan filter hari ini
-  loadAkun(); loadMenu(); loadTotal(); loadDetail();
+  try {
+    const { data, error } = await supabase.from("akun").select("*")
+      .eq("username",u).eq("password",p).eq("role","admin").single();
+    if (error || !data) {
+      await showInfo("Gagal", "Login gagal! Periksa kredensial.");
+      return;
+    }
+    // success
+    document.getElementById("login-overlay").style.display="none";
+    document.getElementById("dashboard").classList.remove("hidden");
+    // set filter tanggal vars
+    tanggalAwal = document.getElementById("filter-tgl-awal").value || tanggalAwal;
+    tanggalAkhir = document.getElementById("filter-tgl-akhir").value || tanggalAkhir;
+    // load data
+    await loadAkun(); await loadMenu(); await loadTotal(); await loadDetail();
+  } catch(err) {
+    console.error(err);
+    await showInfo("Error", "Terjadi kesalahan saat login.");
+  } finally { hideLoading(); }
 }
 function logout(){ location.href="index.html"; }
 
 // AKUN
 async function loadAkun(){
   showLoading();
-  const { data } = await supabase.from("akun").select("*").order("created_at",{ascending:false});
-  hideLoading();
-  const tbody = document.getElementById("tabel-akun");
-  tbody.innerHTML = "";
-  data.forEach(a=>{
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${a.username}</td><td>${a.password}</td><td>${a.role}</td>
-    <td><button class="hapus-akun">Hapus</button></td>`;
-    tr.querySelector(".hapus-akun").addEventListener("click", ()=> {
-      showConfirm("Hapus akun ini?", async ()=>{
-        showLoading();
-        await supabase.from("akun").delete().eq("id", a.id);
-        hideLoading();
-        loadAkun();
+  try {
+    const { data } = await supabase.from("akun").select("*").order("created_at",{ascending:false});
+    const tbody = document.getElementById("tabel-akun");
+    tbody.innerHTML = "";
+    if (!data) return;
+    data.forEach(a=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${a.username}</td><td>${a.password}</td><td>${a.role}</td>
+      <td><button class="hapus-akun">Hapus</button></td>`;
+      tr.querySelector(".hapus-akun").addEventListener("click", ()=> {
+        showConfirm("Hapus akun", `Hapus akun "${a.username}"?`).then(async ok=>{
+          if(!ok) return;
+          showLoading();
+          await supabase.from("akun").delete().eq("id", a.id);
+          await loadAkun();
+          hideLoading();
+        });
       });
+      tbody.appendChild(tr);
     });
-    tbody.appendChild(tr);
-  });
+  } catch(err){ console.error(err); }
+  finally { hideLoading(); }
 }
 document.getElementById("form-akun").addEventListener("submit", async (e)=>{
   e.preventDefault();
-  const username=document.getElementById("akun-username").value;
-  const password=document.getElementById("akun-password").value;
+  const username=document.getElementById("akun-username").value.trim();
+  const password=document.getElementById("akun-password").value.trim();
   const role=document.getElementById("akun-role").value;
+  if(!username || !password) { await showInfo("Kesalahan", "Username dan password wajib diisi."); return; }
   showLoading();
-  await supabase.from("akun").insert([{username,password,role}]);
-  hideLoading();
-  e.target.reset();
-  loadAkun();
+  try {
+    // cek duplikat username
+    const { data: existing } = await supabase.from("akun").select("id").eq("username", username).limit(1);
+    if (existing && existing.length>0) { hideLoading(); await showInfo("Kesalahan", "Username sudah ada."); return; }
+    await supabase.from("akun").insert([{username,password,role}]);
+    e.target.reset();
+    await loadAkun();
+    await showInfo("Berhasil", "Akun berhasil ditambahkan.");
+  } catch(err){ console.error(err); await showInfo("Error", "Gagal menambahkan akun."); }
+  finally { hideLoading(); }
 });
 
-// MENU (PERBAIKAN DISINI)
+// MENU
 async function loadMenu(){
   showLoading();
-  const { data } = await supabase.from("menu").select("*").order("created_at",{ascending:false});
-  hideLoading();
-  const tbody = document.getElementById("tabel-menu");
-  tbody.innerHTML = "";
-  data.forEach(m=>{
-    const tr = document.createElement("tr");
-    const gambarCell = m.gambar ? `<img src="${m.gambar}" class="menu-thumb">` : '-';
-    tr.innerHTML = `<td>${m.nama}</td><td>Rp ${Number(m.harga).toLocaleString()}</td>
-    <td>${m.kategori}</td><td>${gambarCell}</td><td><button class="hapus-menu">Hapus</button></td>`;
-
-    // Fungsi hapus menu dan gambar
-    tr.querySelector(".hapus-menu").addEventListener("click", ()=> {
-      showConfirm("Hapus menu ini?", async ()=>{
-        showLoading();
-        try {
-          if (m.gambar) {
-            const cleanPath = m.gambar.replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/public\//, "");
-            const [bucket, ...restPath] = cleanPath.split("/");
-            const filePath = restPath.join("/");
-            if (bucket && filePath) {
-              await supabase.storage.from(bucket).remove([filePath]);
+  try {
+    const { data } = await supabase.from("menu").select("*").order("created_at",{ascending:false});
+    const tbody = document.getElementById("tabel-menu");
+    tbody.innerHTML = "";
+    if (!data) return;
+    data.forEach(m=>{
+      const tr = document.createElement("tr");
+      const gambarCell = m.gambar ? `<img src="${m.gambar}" class="menu-thumb">` : '-';
+      tr.innerHTML = `<td>${m.nama}</td><td>Rp ${Number(m.harga).toLocaleString()}</td>
+      <td>${m.kategori}</td><td>${gambarCell}</td><td><button class="hapus-menu">Hapus</button></td>`;
+      tr.querySelector(".hapus-menu").addEventListener("click", ()=> {
+        showConfirm("Hapus menu", `Hapus menu "${m.nama}"?`).then(async ok=>{
+          if(!ok) return;
+          showLoading();
+          try {
+            if (m.gambar) {
+              // derive path from public url (best-effort)
+              const cleanPath = m.gambar.replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/public\//, "");
+              const [bucket, ...restPath] = cleanPath.split("/");
+              const filePath = restPath.join("/");
+              if (bucket && filePath) {
+                await supabase.storage.from(bucket).remove([filePath]);
+              }
             }
-          }
-          await supabase.from("menu").delete().eq("id", m.id);
-          loadMenu();
-        } catch (err) {
-          console.error("Gagal hapus menu:", err.message);
-        } finally {
-          hideLoading();
-        }
+            await supabase.from("menu").delete().eq("id", m.id);
+            await loadMenu();
+            await showInfo("Berhasil", "Menu dihapus.");
+          } catch(err) {
+            console.error("Gagal hapus menu:", err);
+            await showInfo("Error", "Gagal menghapus menu.");
+          } finally { hideLoading(); }
+        });
       });
+      tbody.appendChild(tr);
     });
-    tbody.appendChild(tr);
-  });
+  } catch(err){ console.error(err); }
+  finally { hideLoading(); }
 }
 
 document.getElementById("form-menu").addEventListener("submit", async (e)=>{
   e.preventDefault();
-  const nama=document.getElementById("menu-nama").value;
+  const nama=document.getElementById("menu-nama").value.trim();
   const harga=parseInt(document.getElementById("menu-harga").value);
   const kategori=document.getElementById("menu-kategori").value;
   const file=document.getElementById("menu-gambar").files[0];
-  let gambarUrl=null;
+  if(!nama) { await showInfo("Kesalahan","Nama menu wajib diisi."); return; }
+  if(!harga || harga <= 0) { await showInfo("Kesalahan","Harga harus lebih dari 0."); return; }
   showLoading();
-  if(file){
-    const ext=file.name.split('.').pop();
-    const fileName=`${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
-    const { error:uploadError }=await supabase.storage.from("menu-images").upload(fileName,file);
-    if(!uploadError){
-      const { data: publicUrlData } = supabase.storage.from("menu-images").getPublicUrl(fileName);
-      gambarUrl=publicUrlData.publicUrl;
+  try {
+    // cek duplikat nama menu
+    const { data: existing } = await supabase.from("menu").select("id").eq("nama", nama).limit(1);
+    if (existing && existing.length>0) { hideLoading(); await showInfo("Kesalahan","Nama menu sudah ada."); return; }
+
+    let gambarUrl = null;
+    if(file){
+      // ukuran max 2MB
+      if (file.size > 2 * 1024 * 1024) { hideLoading(); await showInfo("Kesalahan","Ukuran gambar maksimal 2 MB."); return; }
+      const ext = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("menu-images").upload(fileName, file);
+      if (uploadError) {
+        console.error("Upload error", uploadError);
+        await showInfo("Error", "Gagal upload gambar.");
+      } else {
+        const { data: publicUrlData } = supabase.storage.from("menu-images").getPublicUrl(fileName);
+        gambarUrl = publicUrlData.publicUrl;
+      }
     }
-  }
-  await supabase.from("menu").insert([{nama,harga,kategori,gambar:gambarUrl}]);
-  hideLoading(); e.target.reset(); loadMenu();
+    await supabase.from("menu").insert([{nama,harga,kategori,gambar:gambarUrl}]);
+    e.target.reset();
+    await loadMenu();
+    await showInfo("Berhasil","Menu berhasil ditambahkan.");
+  } catch(err){
+    console.error(err);
+    await showInfo("Error","Gagal menambahkan menu.");
+  } finally { hideLoading(); }
 });
 
-// TOTAL (filter tanggal) - diperbaiki untuk menampilkan per tanggal + baris jumlah
+// TOTAL (filter tanggal) - tampilkan per tanggal + baris jumlah
 async function loadTotal() {
   showLoading();
-  const { data, error } = await supabase.from("rekap_harian")
-    .select("*")
-    .gte("id", tanggalAwal)
-    .lte("id", tanggalAkhir)
-    .order("id", { ascending: false });
-  hideLoading();
+  try {
+    const { data, error } = await supabase.from("rekap_harian")
+      .select("*")
+      .gte("id", tanggalAwal)
+      .lte("id", tanggalAkhir)
+      .order("id", { ascending: false });
+    const tbody = document.getElementById("tabel-total");
+    tbody.innerHTML = "";
+    if (error) { console.error(error); const tr = document.createElement("tr"); tr.innerHTML = `<td colspan="4">Terjadi kesalahan saat memuat data</td>`; tbody.appendChild(tr); return; }
+    if (!data || data.length === 0) { const tr = document.createElement("tr"); tr.innerHTML = `<td colspan="4">Tidak ada data pada rentang ini</td>`; tbody.appendChild(tr); return; }
 
-  const tbody = document.getElementById("tabel-total");
-  tbody.innerHTML = "";
+    let sumPenjualan = 0;
+    let sumPengeluaran = 0;
+    let sumKas = 0;
+    data.forEach(r => {
+      const penjualan = Number(r.total_penjualan || 0);
+      const pengeluaran = Number(r.total_pengeluaran || 0);
+      const kas = (typeof r.kas_akhir !== 'undefined') ? Number(r.kas_akhir || 0) : (penjualan - pengeluaran);
+      sumPenjualan += penjualan;
+      sumPengeluaran += pengeluaran;
+      sumKas += kas;
+      const tr = document.createElement("tr");
+      // if id is date string, show nicely
+      let tanggalDisplay = r.id;
+      try { tanggalDisplay = new Date(r.id).toLocaleDateString("id-ID"); } catch(e){}
+      tr.innerHTML = `
+        <td>${tanggalDisplay}</td>
+        <td>Rp ${penjualan.toLocaleString()}</td>
+        <td>Rp ${pengeluaran.toLocaleString()}</td>
+        <td>Rp ${kas.toLocaleString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
 
-  if (error) {
-    console.error("Gagal memuat total:", error);
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="4">Terjadi kesalahan saat memuat data</td>`;
-    tbody.appendChild(tr);
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="4">Tidak ada data pada rentang ini</td>`;
-    tbody.appendChild(tr);
-    return;
-  }
-
-  let sumPenjualan = 0;
-  let sumPengeluaran = 0;
-  let sumKas = 0;
-
-  data.forEach(r => {
-    const penjualan = Number(r.total_penjualan || 0);
-    const pengeluaran = Number(r.total_pengeluaran || 0);
-    const kas = (typeof r.kas_akhir !== 'undefined') ? Number(r.kas_akhir || 0) : (penjualan - pengeluaran);
-
-    sumPenjualan += penjualan;
-    sumPengeluaran += pengeluaran;
-    sumKas += kas;
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${new Date(r.id).toLocaleDateString("id-ID")}</td>
-      <td>Rp ${penjualan.toLocaleString()}</td>
-      <td>Rp ${pengeluaran.toLocaleString()}</td>
-      <td>Rp ${kas.toLocaleString()}</td>
+    const trTotal = document.createElement("tr");
+    trTotal.style.fontWeight = "bold";
+    trTotal.innerHTML = `
+      <td>Jumlah</td>
+      <td>Rp ${Number(sumPenjualan).toLocaleString()}</td>
+      <td>Rp ${Number(sumPengeluaran).toLocaleString()}</td>
+      <td>Rp ${Number(sumKas).toLocaleString()}</td>
     `;
-    tbody.appendChild(tr);
-  });
-
-  // Baris jumlah keseluruhan
-  const trTotal = document.createElement("tr");
-  trTotal.style.fontWeight = "bold";
-  trTotal.innerHTML = `
-    <td>Jumlah</td>
-    <td>Rp ${Number(sumPenjualan).toLocaleString()}</td>
-    <td>Rp ${Number(sumPengeluaran).toLocaleString()}</td>
-    <td>Rp ${Number(sumKas).toLocaleString()}</td>
-  `;
-  tbody.appendChild(trTotal);
+    tbody.appendChild(trTotal);
+  } catch(err){ console.error(err); }
+  finally { hideLoading(); }
 }
 
 // DETAIL (filter tanggal)
 async function loadDetail(){
   showLoading();
-  const start = new Date(tanggalAwal); start.setHours(0,0,0,0);
-  const end = new Date(tanggalAkhir); end.setHours(23,59,59,999);
-  const { data } = await supabase.from("transaksi_item")
-    .select("*")
-    .gte("created_at", start.toISOString())
-    .lte("created_at", end.toISOString())
-    .order("created_at",{ascending:false});
-  hideLoading();
-  const tbody=document.getElementById("tabel-detail");tbody.innerHTML="";
-  data.forEach(t=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${new Date(t.created_at).toLocaleDateString("id-ID")}</td>
-    <td>${t.kasir}</td><td>${t.menu}</td><td>Rp ${Number(t.harga).toLocaleString()}</td>
-    <td>${t.jenis}</td><td>Rp ${Number(t.subtotal).toLocaleString()}</td>
-    <td><button class="hapus-detail">Hapus</button></td>`;
-    tr.querySelector(".hapus-detail").addEventListener("click",()=>{
-      showConfirm("Hapus transaksi ini?",async()=>{
-        showLoading();
-        await supabase.from("transaksi_item").delete().eq("id",t.id);
-        hideLoading();loadDetail();loadTotal();
+  try {
+    const start = new Date(tanggalAwal); start.setHours(0,0,0,0);
+    const end = new Date(tanggalAkhir); end.setHours(23,59,59,999);
+    const { data } = await supabase.from("transaksi_item")
+      .select("*")
+      .gte("created_at", start.toISOString())
+      .lte("created_at", end.toISOString())
+      .order("created_at",{ascending:false});
+    const tbody=document.getElementById("tabel-detail"); tbody.innerHTML="";
+    if (!data || data.length===0) {
+      const tr = document.createElement("tr"); tr.innerHTML = `<td colspan="7">Tidak ada transaksi pada rentang ini</td>`; tbody.appendChild(tr); return;
+    }
+    data.forEach(t=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${new Date(t.created_at).toLocaleDateString("id-ID")}</td>
+      <td>${t.kasir}</td><td>${t.menu}</td><td>Rp ${Number(t.harga).toLocaleString()}</td>
+      <td>${t.jenis}</td><td>Rp ${Number(t.subtotal).toLocaleString()}</td>
+      <td><button class="hapus-detail">Hapus</button></td>`;
+      tr.querySelector(".hapus-detail").addEventListener("click",()=>{
+        showConfirm("Hapus transaksi", "Hapus transaksi ini?").then(async ok=>{
+          if(!ok) return;
+          showLoading();
+          await supabase.from("transaksi_item").delete().eq("id",t.id);
+          hideLoading(); await loadDetail(); await loadTotal();
+        });
       });
+      tbody.appendChild(tr);
     });
-    tbody.appendChild(tr);
-  });
+  } catch(err){ console.error(err); }
+  finally { hideLoading(); }
 }
 
 // FILTER (ubah tanggal manual)
-document.getElementById("filter-tgl-awal").addEventListener("change", e=>{tanggalAwal=e.target.value;loadTotal();loadDetail();});
-document.getElementById("filter-tgl-akhir").addEventListener("change", e=>{tanggalAkhir=e.target.value;loadTotal();loadDetail();});
+document.getElementById("filter-tgl-awal").addEventListener("change", async e=>{ tanggalAwal=e.target.value; await loadTotal(); await loadDetail(); });
+document.getElementById("filter-tgl-akhir").addEventListener("change", async e=>{ tanggalAkhir=e.target.value; await loadTotal(); await loadDetail(); });
 
-// DOWNLOAD
+// DOWNLOAD CSV gabungkan TABEL TOTAL dan TABEL DETAIL (berdasarkan filter tanggal)
 async function downloadTransaksi(){
   showLoading();
-  const { data: detail } = await supabase.from("transaksi_item").select("*");
-  hideLoading();
-  let csv="Tanggal;Kasir;Menu;Harga;Jenis;Subtotal\n";
-  detail.forEach(d=>{
-    csv+=`${new Date(d.created_at).toLocaleDateString("id-ID")};"${d.kasir}";"${d.menu}";${d.harga};${d.jenis};${d.subtotal}\n`;
-  });
-  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;a.download=`laporan.csv`;a.click();URL.revokeObjectURL(url);
+  try {
+    // ambil rekap_harian sesuai filter
+    const { data: totalData, error: errTotal } = await supabase.from("rekap_harian")
+      .select("*")
+      .gte("id", tanggalAwal)
+      .lte("id", tanggalAkhir)
+      .order("id", { ascending: false });
+    if (errTotal) { console.error(errTotal); await showInfo("Error","Gagal mengambil data total."); return; }
+
+    // ambil detail transaksi sesuai filter
+    const start = new Date(tanggalAwal); start.setHours(0,0,0,0);
+    const end = new Date(tanggalAkhir); end.setHours(23,59,59,999);
+    const { data: detailData, error: errDetail } = await supabase.from("transaksi_item")
+      .select("*")
+      .gte("created_at", start.toISOString())
+      .lte("created_at", end.toISOString())
+      .order("created_at",{ascending:false});
+    if (errDetail) { console.error(errDetail); await showInfo("Error","Gagal mengambil data detail."); return; }
+
+    // build csv content
+    let csvLines = [];
+    csvLines.push(`LAPORAN PENJUALAN (${tanggalAwal} s/d ${tanggalAkhir})`);
+    csvLines.push("");
+    csvLines.push("=== TABEL TOTAL ===");
+    csvLines.push("Tanggal;Total Penjualan;Total Pengeluaran;Kas Akhir");
+    if (totalData && totalData.length>0) {
+      totalData.forEach(r=>{
+        const tgl = (new Date(r.id)).toLocaleDateString("id-ID");
+        const pen = Number(r.total_penjualan || 0);
+        const peng = Number(r.total_pengeluaran || 0);
+        const kas = (typeof r.kas_akhir !== 'undefined') ? Number(r.kas_akhir || 0) : (pen - peng);
+        csvLines.push(`${tgl};${pen};${peng};${kas}`);
+      });
+    } else {
+      csvLines.push("Tidak ada data");
+    }
+
+    csvLines.push("");
+    csvLines.push("=== TABEL DETAIL ===");
+    csvLines.push("Tanggal;Waktu;Kasir;Nama Menu;Jumlah;Harga;Subtotal;Jenis");
+    if (detailData && detailData.length>0) {
+      detailData.forEach(d=>{
+        const dt = new Date(d.created_at);
+        const tgl = dt.toLocaleDateString("id-ID");
+        const waktu = dt.toLocaleTimeString("id-ID");
+        const kasir = (d.kasir || "").toString().replace(/;/g,',');
+        const menu = (d.menu || "").toString().replace(/;/g,',');
+        const jumlah = d.jumlah ?? d.qty ?? 1;
+        const harga = Number(d.harga || 0);
+        const subtotal = Number(d.subtotal || 0);
+        const jenis = d.jenis || "";
+        csvLines.push(`${tgl};${waktu};"${kasir}";"${menu}";${jumlah};${harga};${subtotal};${jenis}`);
+      });
+    } else {
+      csvLines.push("Tidak ada data");
+    }
+
+    const csvContent = csvLines.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `laporan-penjualan-${tanggalAwal}_to_${tanggalAkhir}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    await showInfo("Selesai", "Laporan berhasil diunduh.");
+  } catch(err){
+    console.error(err);
+    await showInfo("Error", "Gagal membuat laporan.");
+  } finally { hideLoading(); }
 }
 
 // HAPUS MASSAL
-function hapus3BulanConfirm(){
-  showConfirm("Hapus transaksi > 3 bulan?",async()=>{
-    showLoading();
-    const cutoff=new Date();cutoff.setMonth(cutoff.getMonth()-3);
-    await supabase.from("transaksi_item").delete().lt("created_at",cutoff.toISOString());
-    hideLoading();loadDetail();loadTotal();
-  });
+async function hapus3BulanConfirm(){
+  const ok = await showConfirm("Hapus data > 3 bulan", "Yakin menghapus semua transaksi yang lebih dari 3 bulan?");
+  if(!ok) return;
+  showLoading();
+  try {
+    const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth()-3);
+    await supabase.from("transaksi_item").delete().lt("created_at", cutoff.toISOString());
+    await loadDetail(); await loadTotal();
+    await showInfo("Berhasil", "Data lama berhasil dihapus.");
+  } catch(err){
+    console.error(err);
+    await showInfo("Error", "Gagal menghapus data lama.");
+  } finally { hideLoading(); }
 }
-function hapusSemuaConfirm(){
-  showConfirm("Hapus semua transaksi?", async ()=>{
-    showLoading();
-    try {
-      await supabase.from("transaksi_item").delete().not("id", "is", null);
-      alert("Semua transaksi berhasil dihapus!");
-    } catch(err){
-      console.error("Gagal hapus semua transaksi:", err.message);
-      alert("Terjadi kesalahan saat menghapus transaksi!");
-    } finally {
-      hideLoading();
-      loadDetail();
-      loadTotal();
+
+async function hapusSemuaConfirm(){
+  const ok = await showConfirm("Hapus semua transaksi", "Yakin menghapus semua transaksi? Proses akan berjalan bertahap.");
+  if(!ok) return;
+  showLoading();
+  try {
+    // batch delete: ambil id 500, hapus, ulangi sampai kosong
+    while (true) {
+      const { data: ids, error: idErr } = await supabase.from("transaksi_item").select("id").limit(500);
+      if (idErr) { console.error(idErr); throw idErr; }
+      if (!ids || ids.length === 0) break;
+      const idList = ids.map(i=>i.id);
+      await supabase.from("transaksi_item").delete().in("id", idList);
+      // loop lagi
     }
-  });
+    await loadDetail(); await loadTotal();
+    await showInfo("Selesai", "Semua transaksi berhasil dihapus.");
+  } catch(err){
+    console.error(err);
+    await showInfo("Error", "Terjadi kesalahan saat menghapus semua transaksi.");
+  } finally { hideLoading(); }
 }
 
-
-// KONFIRMASI
-function showConfirm(text,callback){
-  document.getElementById("confirm-text").textContent=text;
-  document.getElementById("confirm-overlay").style.display="flex";
-  confirmCallback=callback;
-  document.getElementById("confirm-yes").onclick=()=>{closeConfirm();if(confirmCallback)confirmCallback();};
-}
-function closeConfirm(){document.getElementById("confirm-overlay").style.display="none";}
-
-document.getElementById("login-overlay").style.display="flex";
+// inisialisasi: kalau login ditutup, dashboard muncul di login success (handled di login)
 </script>
 </body>
 </html>
