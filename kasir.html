@@ -11,13 +11,13 @@
   .sidebar, .menu, .order { padding:10px; box-sizing:border-box; overflow:auto; }
   .sidebar { flex:1; min-width:150px; background:#bbdefb; }
   .menu { flex:2; min-width:200px; background:#e3f2fd; display:grid; gap:10px; justify-content:start; }
-  .order { flex:2; min-width:200px; background:#f1f8ff; display:flex; flex-direction:column; }
+  .order { flex:2; min-width:100px; background:#f1f8ff; display:flex; flex-direction:column; }
   .btn { display:block; width:100%; padding:8px; margin:5px 0; background:#2196f3; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; }
   .btn:hover { background:#1976d2; }
   .card { background:#fff; height:150px; padding:10px; border-radius:8px; text-align:center; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
   .card:hover { background:#e1f5fe; }
   .card img { width:90px; height:90px; object-fit:cover; border-radius:8px; margin-bottom:5px; }
-  .order-list { flex:1; overflow:auto; margin-bottom:10px; height:100%; width: 100%; right: 0%;}
+  .order-list { flex:1; overflow:auto; margin-bottom:10px; height:100%; width: 100%; }
   .order-item { display:flex; justify-content:space-between; align-items:center; padding:5px; border-bottom:1px solid #ccc; }
   .order-item span { font-size:0.9em; }
   .order-actions { display:flex; justify-content:space-between; gap:5px; }
@@ -26,18 +26,14 @@
   .popup-content { background:#fff; padding:20px; border-radius:8px; max-width:350px; width:90%; text-align:center; }
   .spinner { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); border:6px solid #ccc; border-top:6px solid #2196f3; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
   @keyframes spin { 100% { transform:translate(-50%,-50%) rotate(360deg); } }
-  #strukPreview { text-align:left; font-size:0.9em; white-space:pre-wrap; font-family:monospace; }
-  #strukPreview hr { border:none; border-top:1px dashed #aaa; margin:5px 0; }
 
   /* ====================== RESPONSIVE ====================== */
 
-  /* Default desktop (tetap 4 kolom) */
   @media (min-width: 1025px) {
     .menu { grid-template-columns: repeat(4, 1fr); }
   }
 
-  /* Portrait HP → 3 kolom */
-  @media (max-width: 608px) and (orientation: portrait) {
+  @media (max-width: 1000px) and (orientation: portrait) {
     .container { flex-direction: column; height:auto; }
     .sidebar { flex:none; width:100%; display:flex; flex-wrap:wrap; gap:5px; margin-bottom:5px; }
     .sidebar .btn { flex:1 1 calc(50% - 5px); margin:2px 0; font-size:0.8em; }
@@ -46,8 +42,7 @@
     .order { width:100%; }
   }
 
-  /* ✅ HP Landscape → tombol pindah ke atas, 4 kolom menu */
-  @media (max-width: 768px) and (orientation: landscape) {
+  @media (max-width: 1000px) and (orientation: landscape) {
     .container { flex-direction: column; height:auto; }
     .sidebar {
       flex:none;
@@ -80,8 +75,7 @@
     }
   }
 
-  /* ✅ Tablet Landscape (769px–1024px) → 5 kolom */
-  @media (min-width: 769px) and (max-width: 1024px) and (orientation: landscape) {
+  @media (min-width: 1024px) and (max-width: 1200px) and (orientation: landscape) {
     .sidebar {
       flex:none;
       order:-1;
@@ -109,13 +103,11 @@
     }
   }
 </style>
-
 </head>
 <body>
   <header id="restoName">Kasir</header>
 
   <div class="container">
-    <!-- Sidebar -->
     <div class="sidebar">
       <button class="btn" onclick="filterMenu('Semua')">Semua</button>
       <button class="btn" onclick="filterMenu('Makanan')">Makanan</button>
@@ -125,10 +117,8 @@
       <button class="btn" onclick="logout()">⬅ Kembali</button>
     </div>
 
-    <!-- Menu -->
     <div class="menu" id="menuList"></div>
 
-    <!-- Order -->
     <div class="order">
       <div class="order-list" id="orderList"></div>
       <div>
@@ -144,7 +134,7 @@
     </div>
   </div>
 
-  <!-- Popup dan Spinner -->
+  <!-- Popup -->
   <div class="popup" id="loginPopup">
     <div class="popup-content">
       <h3>Login Kasir</h3>
@@ -178,14 +168,6 @@
       <p>Cetak struk sekarang?</p>
       <button class="btn" onclick="lanjutBayar(true)">Ya</button>
       <button class="btn" onclick="lanjutBayar(false)">Tidak</button>
-    </div>
-  </div>
-
-  <div class="popup" id="previewPopup">
-    <div class="popup-content">
-      <div id="strukPreview"></div>
-      <button class="btn" id="btnCetakSekarang" onclick="cetakStruk()">Cetak Sekarang</button>
-      <button class="btn" onclick="closePopup('previewPopup')">Batal</button>
     </div>
   </div>
 
@@ -319,8 +301,23 @@
       }
       showSpinner(false);
 
-      if (cetak) tampilkanStruk(idTransaksi);
-      else { openNotif("Transaksi tersimpan!"); resetPesanan(); }
+      if (cetak) {
+        const bayar = parseInt(document.getElementById("bayar").value)||0;
+        const totalAkhir = totalHarga - diskon;
+        const kembalian = bayar - totalAkhir;
+        const waktu = new Date().toLocaleString("id-ID");
+
+        const textStruk = formatThermalReceipt(
+          idTransaksi, waktu, kasir, pesanan.slice(),
+          totalHarga, diskon, bayar, kembalian
+        );
+        const ok = printThermal(textStruk);
+        openNotif(ok ? "Perintah cetak dikirim ke RawBT" : "Gagal mengirim ke printer");
+      } else {
+        openNotif("Transaksi tersimpan!");
+      }
+
+      resetPesanan();
     }
 
     function padCenter(text, width=32) { if (!text) return ''.padEnd(width,' '); if (text.length >= width) return text; const left = Math.floor((width - text.length)/2); const right = width - text.length - left; return ' '.repeat(left) + text + ' '.repeat(right); }
@@ -353,82 +350,43 @@
       lines.push(padRight('Kembalian:', width-12) + formatCurrency(kembalian));
       lines.push('-'.repeat(width));
       lines.push(padCenter('Terima kasih!', width));
-      lines.push('\n\n');
       return lines.join('\n');
     }
 
-    function tampilkanStruk(idTransaksi){
-      const bayar = parseInt(document.getElementById("bayar").value)||0;
-      const diskon = parseInt(document.getElementById("diskon").value)||0;
-      const totalAkhir = totalHarga - diskon;
-      const kembalian = bayar - totalAkhir;
-      const waktu = new Date().toLocaleString("id-ID");
-
-      let html = `<center><b>${escapeHtml(namaResto)}</b><br>Kasir: ${escapeHtml(kasir)}<br>${waktu}</center><hr>`;
-      pesanan.forEach(p => html += `${escapeHtml(p.nama)} x${p.jumlah} - Rp ${p.harga*p.jumlah}<br>`);
-      html += `<hr>Total: Rp ${totalHarga}<br>Diskon: Rp ${diskon}<br><b>Total Akhir: Rp ${totalAkhir}</b><br>Bayar: Rp ${bayar}<br>Kembalian: Rp ${kembalian}<hr><center>Terima kasih!</center>`;
-
-      document.getElementById("strukPreview").innerHTML = html;
-      openPopup('previewPopup');
-      window._lastThermalText = formatThermalReceipt(idTransaksi, waktu, kasir, pesanan.slice(), totalHarga, diskon, bayar, kembalian);
-      resetPesanan();
-    }
-
-    function escapeHtml(unsafe) { return String(unsafe).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
-
-    function printThermal(printText) {
+    function printThermal(text) {
       try {
-        const ESC = '\x1B';
-        const GS = '\x1D';
-        let cmd = '';
-        cmd += ESC + '@';
-        cmd += ESC + 't' + '\x00';
-        cmd += ESC + 'a' + '\x01';
-        cmd += padCenter(namaResto, 32) + '\n';
-        cmd += ESC + 'a' + '\x00';
-        cmd += 'No: ' + new Date().getTime() + '\n';
-        cmd += printText;
-        cmd += '\n\n';
-        cmd += GS + 'V' + '\x01';
-        const url = 'rawbt://print?text=' + encodeURIComponent(cmd);
+        const encoded = encodeURIComponent(text);
+        const url = `rawbt:${encoded}`;
         window.location.href = url;
         return true;
-      } catch (err) { console.error("printThermal error:", err); return false; }
-    }
-
-    function cetakStruk(){
-      const text = window._lastThermalText || document.getElementById("strukPreview").innerText;
-      const ok = printThermal(text);
-      closePopup('previewPopup');
-      openNotif(ok ? "Perintah cetak dikirim ke RawBT" : "Gagal mengirim ke printer");
+      } catch(e) { console.error(e); return false; }
     }
 
     async function simpanPengeluaran() {
-      const ket = document.getElementById("ketPengeluaran").value;
-      const jumlah = parseInt(document.getElementById("jumlahPengeluaran").value);
-      const harga = parseInt(document.getElementById("hargaPengeluaran").value);
-      if (!ket || !jumlah || !harga) return;
+      const ket = document.getElementById("ketPengeluaran").value.trim();
+      const jml = parseInt(document.getElementById("jumlahPengeluaran").value)||0;
+      const harga = parseInt(document.getElementById("hargaPengeluaran").value)||0;
+      if (!ket || !jml || !harga) return openNotif("Lengkapi semua data!");
       showSpinner(true);
-      await supabase.from("transaksi_item").insert([{
+      const { error } = await supabase.from("transaksi_item").insert([{
         id_transaksi: crypto.randomUUID(),
         kasir,
         menu: ket,
-        jumlah,
-        harga,
-        subtotal: jumlah*harga,
+        jumlah: jml,
+        harga: harga,
+        subtotal: jml * harga,
         jenis: "pengeluaran"
       }]);
       showSpinner(false);
-      closePopup("pengeluaranPopup");
-      openNotif("Pengeluaran tersimpan!");
+      if (error) openNotif("Gagal simpan pengeluaran!");
+      else { openNotif("Pengeluaran disimpan!"); closePopup("pengeluaranPopup"); }
     }
 
+    function openPopup(id){ document.getElementById(id).style.display='flex'; }
+    function closePopup(id){ document.getElementById(id).style.display='none'; }
     function openNotif(msg){ document.getElementById("notifMessage").innerText=msg; openPopup("notifPopup"); }
-    function openPopup(id){ document.getElementById(id).style.display="flex"; }
-    function closePopup(id){ document.getElementById(id).style.display="none"; }
-    function showSpinner(show){ document.getElementById("spinner").style.display=show?"block":"none"; }
-    function logout(){ sessionStorage.clear(); window.location.href="index.html"; }
+    function showSpinner(show){ document.getElementById("spinner").style.display = show ? 'block':'none'; }
+    function logout(){ sessionStorage.clear(); location.reload(); }
   </script>
 </body>
 </html>
-
