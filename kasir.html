@@ -190,6 +190,72 @@
   @keyframes spin {
     100% { transform: translate(-50%,-50%) rotate(360deg); }
   }
+  
+  @media (max-width: 600px) {
+  /* Navbar dua baris */
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .navbar-left, .navbar-right {
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .navbar input[type="text"] {
+    width: 100%;
+  }
+
+  /* Container vertikal */
+  .container {
+    flex-direction: column;
+    height: auto;
+  }
+
+  /* MENU FLEX 5 KOLM MUAT LEBAR */
+  .menu {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0;
+    margin: 0;
+    overflow-x: hidden;
+  }
+  .menu .card {
+    flex: 0 0 20%;      /* 5 kolom */
+    padding: 4px;
+    height: auto;       /* tinggi fleksibel */
+    min-height: 90px;   /* tetap minimal */
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  /* Gambar menu lebih kecil */
+  .card img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+  }
+
+  /* Nama menu auto-fit */
+  .card b {
+    display: block;
+    font-size: 0.75em;
+    white-space: normal;
+    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2em;
+  }
+
+  /* Order box full width */
+  .order {
+    min-width: 100%;
+    margin-top: 8px;
+  }
+}
+
 
   /* === RESPONSIVE === */
   @media (max-width: 800px) {
@@ -303,7 +369,6 @@
     let namaResto = localStorage.getItem("namaResto") || "RESTO BUNDA RITA";
     document.getElementById("restoName").innerText = namaResto;
 
-    // ✅ LANGSUNG MUNCUL POPUP LOGIN SAAT PERTAMA BUKA
     window.addEventListener('load', () => {
       openPopup('loginPopup');
     });
@@ -395,7 +460,7 @@
       closePopup('cetakPopup');
       showSpinner(true);
       const idTransaksi = crypto.randomUUID();
-      const diskon = parseInt(document.getElementById("diskon").value)||0;
+      const diskon = 0; // default karena input diskon tidak ada
       for (let p of pesanan) {
         await supabase.from("transaksi_item").insert([{
           id_transaksi: idTransaksi,
@@ -456,12 +521,16 @@
       return lines.join("\n");
     }
 
+    // === Fungsi printThermal baru yang langsung kompatibel RawBT ===
     function printThermal(text) {
-      const blob = new Blob([text], {type: 'text/plain'});
-      const url = URL.createObjectURL(blob);
-      const printURL = "rawbt:" + url;
-      window.location.href = printURL;
-      return true;
+      try {
+        const encodedText = encodeURIComponent(text);
+        window.location.href = `rawbt:${encodedText}`;
+        return true;
+      } catch (e) {
+        console.error("Gagal cetak ke RawBT:", e);
+        return false;
+      }
     }
 
     async function simpanPengeluaran() {
