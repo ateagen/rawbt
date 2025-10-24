@@ -1,270 +1,284 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kasir Modern</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kasir</title>
   <style>
-    body {
-      margin: 0;
-      font-family: "Segoe UI", sans-serif;
-      background: #e9f5ff;
-      color: #333;
-    }
+  body {
+    margin: 0;
+    font-family: sans-serif;
+    background: #e0f7ff;
+    color: #333;
+  }
 
-    header {
-      background: #2196f3;
-      color: white;
-      text-align: center;
-      padding: 12px;
-      font-size: 1.4em;
-      letter-spacing: 0.5px;
-    }
+  header {
+    background: #2196f3;
+    color: #fff;
+    padding: 10px;
+    text-align: center;
+    font-size: 1.2em;
+  }
 
-    /* === NAVBAR === */
-    .navbar {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      background: #bbdefb;
-      padding: 8px 16px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    }
+  /* === NAVBAR === */
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    background: #bbdefb;
+    padding: 8px 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
 
-    .navbar-left {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
+  .navbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
 
-    .navbar-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+  .navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-    .btn {
-      background: #2196f3;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 8px 12px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: 0.25s;
-      white-space: nowrap;
-    }
+  .navbar .btn {
+    background: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    padding: 8px 14px;
+    transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  }
 
-    .btn:hover {
-      background: #1976d2;
-      transform: scale(1.05);
-    }
+  .navbar .btn:hover {
+    background: #1976d2;
+  }
 
-    .navbar input[type="text"] {
-      padding: 7px 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      width: 220px;
-      transition: 0.3s;
-    }
+  .navbar input[type="text"] {
+    padding: 7px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9em;
+    width: 200px;
+  }
 
-    .navbar input[type="text"]:focus {
-      outline: none;
-      border-color: #2196f3;
-      box-shadow: 0 0 4px #90caf9;
-    }
+  .container {
+    display: flex;
+    flex-wrap: wrap;
+    height: calc(100vh - 110px);
+  }
 
-    /* === LAYOUT === */
-    .container {
-      display: flex;
-      height: calc(100vh - 120px);
-    }
+  .menu {
+    flex: 2;
+    min-width: 200px;
+    background: #e3f2fd;
+    display: grid;
+    gap: 10px;
+    justify-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    padding: 10px;
+    overflow-y: auto;
+  }
 
-    .menu {
-      flex: 3;
-      padding: 12px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 12px;
-      background: #e3f2fd;
-      overflow-y: auto;
-    }
+  .order {
+    flex: 1;
+    min-width: 250px;
+    background: #f1f8ff;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+  }
 
-    .order {
-      flex: 1.2;
-      background: #f1f8ff;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-    }
+  .card {
+    background: #fff;
+    height: 150px;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
 
-    /* === KARTU MENU === */
-    .card {
-      background: #fff;
-      padding: 10px;
-      border-radius: 10px;
-      text-align: center;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      cursor: pointer;
-      transition: 0.25s;
-    }
+  .card:hover { background: #e1f5fe; }
 
-    .card:hover {
-      background: #e1f5fe;
-      transform: scale(1.05);
-    }
+  .card img {
+    width: 90px;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 5px;
+  }
 
-    .card img {
-      width: 100%;
-      height: 100px;
-      object-fit: cover;
-      border-radius: 8px;
-      margin-bottom: 5px;
-    }
+  .order-list {
+    flex: 1;
+    overflow: auto;
+  }
 
-    /* === PESANAN === */
-    .order-list {
-      flex: 1;
-      overflow-y: auto;
-      margin-bottom: 12px;
-      background: #fff;
-      border-radius: 10px;
-      padding: 8px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-    }
+  .order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    border-bottom: 1px solid #ccc;
+  }
 
-    .order-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px;
-      border-bottom: 1px solid #ddd;
-    }
+  .btn {
+    display: inline-block;
+    padding: 8px 10px;
+    background: #2196f3;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
 
-    .input {
-      width: 100%;
-      padding: 8px;
-      margin: 5px 0;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
+  .btn:hover { background: #1976d2; }
 
-    .order-actions {
-      display: flex;
-      justify-content: space-between;
-      gap: 6px;
-    }
+  .input {
+    width: 100%;
+    padding: 6px;
+    margin: 4px 0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+  }
 
-    /* === POPUP === */
-    .popup {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 20;
-    }
+  .popup {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+  }
 
-    .popup-content {
-      background: white;
-      border-radius: 10px;
-      padding: 20px;
-      text-align: center;
-      width: 90%;
-      max-width: 350px;
-    }
+  .popup-content {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 350px;
+    width: 90%;
+    text-align: center;
+  }
 
-    .spinner {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      border: 6px solid #ccc;
-      border-top: 6px solid #2196f3;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      animation: spin 1s linear infinite;
-      z-index: 100;
-    }
+  .spinner {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    border: 6px solid #ccc;
+    border-top: 6px solid #2196f3;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    z-index: 40;
+  }
 
-    @keyframes spin {
-      100% {
-        transform: translate(-50%, -50%) rotate(360deg);
-      }
-    }
+  @keyframes spin {
+    100% { transform: translate(-50%,-50%) rotate(360deg); }
+  }
 
-    /* === RESPONSIVE === */
-    @media (max-width: 800px) {
-      .container {
-        flex-direction: column;
-        height: auto;
-      }
-      .navbar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-      }
-      .navbar-right {
-        width: 100%;
-        justify-content: flex-start;
-      }
-      .navbar input[type="text"] {
-        width: 100%;
-      }
-    }
+  /* === RESPONSIVE === */
+  @media (max-width: 800px) {
+    .navbar { flex-direction: column; align-items: flex-start; }
+    .navbar-left, .navbar-right { flex-wrap: wrap; width: 100%; justify-content: flex-start; }
+    .navbar input[type="text"] { width: 100%; }
+    .container { flex-direction: column; height: auto; }
+    .menu { grid-template-columns: repeat(5, 1fr); }
+  }
+
+  @media (min-width: 801px) {
+    .menu { grid-template-columns: repeat(5, 1fr); }
+  }
   </style>
 </head>
-
 <body>
   <header id="restoName">Kasir</header>
 
-  <!-- === NAVBAR === -->
   <div class="navbar">
     <div class="navbar-left">
-      <button class="btn" onclick="logout()">⬅ Kembali</button>
+      <a href="index.html" class="btn" id="backBtn">⬅ Kembali</a>
       <button class="btn" onclick="filterMenu('Semua')">Semua</button>
       <button class="btn" onclick="filterMenu('Makanan')">Makanan</button>
       <button class="btn" onclick="filterMenu('Minuman')">Minuman</button>
       <button class="btn" onclick="filterMenu('Cemilan')">Cemilan</button>
       <button class="btn" onclick="openPopup('pengeluaranPopup')">+ Pengeluaran</button>
     </div>
-
     <div class="navbar-right">
-      <input type="text" id="searchInput" placeholder="Cari menu..." oninput="searchMenu()" />
+      <input type="text" id="searchInput" placeholder="Cari menu..." oninput="cariMenu()">
     </div>
   </div>
 
-  <!-- === ISI HALAMAN === -->
   <div class="container">
     <div class="menu" id="menuList"></div>
-
     <div class="order">
       <div class="order-list" id="orderList"></div>
       <div>
         <p>Total: Rp <span id="total">0</span></p>
-        <input type="number" id="diskon" class="input" placeholder="Diskon (Rp)" oninput="hitungKembalian()" />
-        <input type="number" id="bayar" class="input" placeholder="Bayar" oninput="hitungKembalian()" />
+        <input type="number" id="bayar" class="input" placeholder="Bayar" oninput="hitungKembalian()">
         <p>Kembalian: Rp <span id="kembalian">0</span></p>
         <div class="order-actions">
-          <button class="btn" onclick="resetPesanan()">Reset</button>
+          <button class="btn" onclick="openPopup('resetPopup')">Reset</button>
           <button class="btn" onclick="konfirmasiBayar()">Bayar</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- === POPUP NOTIFIKASI === -->
+  <!-- POPUP LOGIN -->
+  <div class="popup" id="loginPopup" style="display:flex;">
+    <div class="popup-content">
+      <h3>Login Kasir</h3>
+      <input type="text" id="username" class="input" placeholder="Username">
+      <input type="password" id="password" class="input" placeholder="Password">
+      <button class="btn" onclick="login()">Login</button>
+    </div>
+  </div>
+
+  <!-- POPUP PENGELUARAN -->
+  <div class="popup" id="pengeluaranPopup">
+    <div class="popup-content">
+      <h3>Input Pengeluaran</h3>
+      <input type="text" id="ketPengeluaran" class="input" placeholder="Keterangan">
+      <input type="number" id="jumlahPengeluaran" class="input" placeholder="Jumlah">
+      <input type="number" id="hargaPengeluaran" class="input" placeholder="Harga">
+      <button class="btn" onclick="simpanPengeluaran()">Simpan</button>
+      <button class="btn" onclick="closePopup('pengeluaranPopup')">Batal</button>
+    </div>
+  </div>
+
+  <!-- POPUP RESET -->
+  <div class="popup" id="resetPopup">
+    <div class="popup-content">
+      <p>Yakin reset semua pesanan?</p>
+      <button class="btn" onclick="resetPesanan()">Ya</button>
+      <button class="btn" onclick="closePopup('resetPopup')">Batal</button>
+    </div>
+  </div>
+
+  <!-- POPUP CETAK -->
+  <div class="popup" id="cetakPopup">
+    <div class="popup-content">
+      <p>Cetak struk sekarang?</p>
+      <button class="btn" onclick="lanjutBayar(true)">Ya</button>
+      <button class="btn" onclick="lanjutBayar(false)">Tidak</button>
+    </div>
+  </div>
+
+  <!-- POPUP NOTIF -->
   <div class="popup" id="notifPopup">
     <div class="popup-content">
       <p id="notifMessage"></p>
@@ -274,75 +288,69 @@
 
   <div class="spinner" id="spinner"></div>
 
-  <!-- === SCRIPT ASLI (tidak diubah) === -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://dxcaivedoitovhjtyhxe.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Qw4tlM2CtchoDM4TDGWPkA_gCeYarzs";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let kasir = sessionStorage.getItem("kasir") || "";
+    let kasir = "";
+    let role = "";
     let allMenu = [];
     let filter = "Semua";
-    let searchQuery = "";
     let pesanan = [];
     let totalHarga = 0;
+    let namaResto = localStorage.getItem("namaResto") || "RESTO BUNDA RITA";
+    document.getElementById("restoName").innerText = namaResto;
 
-    document.getElementById("restoName").innerText =
-      localStorage.getItem("namaResto") || "RESTO BUNDA RITA";
-
-    document.addEventListener("DOMContentLoaded", async () => {
-      if (!kasir) {
-        showNotif("Silakan login terlebih dahulu.");
-      } else {
-        await loadMenu();
-      }
+    // ✅ LANGSUNG MUNCUL POPUP LOGIN SAAT PERTAMA BUKA
+    window.addEventListener('load', () => {
+      openPopup('loginPopup');
     });
+
+    async function login() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      if (!username || !password) return openNotif("Isi username dan password!");
+      showSpinner(true);
+      const { data, error } = await supabase.from("akun").select("*").eq("username", username).eq("password", password).single();
+      showSpinner(false);
+      if (error || !data) return openNotif("Login gagal!");
+      kasir = data.username;
+      role = data.role;
+      sessionStorage.setItem("kasir", kasir);
+      sessionStorage.setItem("role", role);
+      closePopup("loginPopup");
+      await loadMenu();
+    }
 
     async function loadMenu() {
       showSpinner(true);
       const { data, error } = await supabase.from("menu").select("*");
       showSpinner(false);
-      if (!error) {
-        allMenu = data;
-        renderMenu();
-      } else {
-        showNotif("Gagal memuat menu.");
-      }
+      if (!error) { allMenu = data; renderMenu(); }
     }
 
     function renderMenu() {
       const menuList = document.getElementById("menuList");
       menuList.innerHTML = "";
-      allMenu
-        .filter((m) => filter === "Semua" || m.kategori === filter)
-        .filter((m) => m.nama.toLowerCase().includes(searchQuery))
-        .forEach((m) => {
-          const card = document.createElement("div");
-          card.className = "card";
-          card.innerHTML = `
-            <img src="${m.gambar || "https://via.placeholder.com/100"}">
-            <b>${m.nama}</b><br>Rp ${m.harga.toLocaleString("id-ID")}
-          `;
-          card.onclick = () => tambahPesanan(m);
-          menuList.appendChild(card);
-        });
+      const searchVal = document.getElementById("searchInput")?.value?.toLowerCase() || "";
+      allMenu.filter(m => (filter === "Semua" || m.kategori === filter) && m.nama.toLowerCase().includes(searchVal))
+      .forEach(m => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `<img src="${m.gambar || 'https://via.placeholder.com/60'}"><b>${m.nama}</b><br>Rp ${m.harga}`;
+        card.onclick = () => tambahPesanan(m);
+        menuList.appendChild(card);
+      });
     }
 
-    function filterMenu(kat) {
-      filter = kat;
-      renderMenu();
-    }
-
-    function searchMenu() {
-      searchQuery = document.getElementById("searchInput").value.toLowerCase();
-      renderMenu();
-    }
-
-    function tambahPesanan(m) {
-      const item = pesanan.find((p) => p.nama === m.nama);
+    function cariMenu() { renderMenu(); }
+    function filterMenu(kat) { filter = kat; renderMenu(); }
+    function tambahPesanan(menu) {
+      const item = pesanan.find(p => p.nama === menu.nama);
       if (item) item.jumlah++;
-      else pesanan.push({ nama: m.nama, harga: m.harga, jumlah: 1 });
+      else pesanan.push({ nama: menu.nama, harga: menu.harga, jumlah:1 });
       renderPesanan();
     }
 
@@ -350,68 +358,140 @@
       const list = document.getElementById("orderList");
       list.innerHTML = "";
       totalHarga = 0;
-      pesanan.forEach((p, i) => {
+      pesanan.forEach((p,i) => {
         totalHarga += p.harga * p.jumlah;
         const row = document.createElement("div");
         row.className = "order-item";
-        row.innerHTML = `
-          <span>${p.nama} x${p.jumlah} - Rp ${(p.harga * p.jumlah).toLocaleString("id-ID")}</span>
-          <button class="btn" onclick="hapusItem(${i})">❌</button>
-        `;
+        row.innerHTML = `<span>${p.nama} x${p.jumlah} - Rp ${p.harga*p.jumlah}</span>
+          <button class="btn" onclick="hapusItem(${i})">❌</button>`;
         list.appendChild(row);
       });
-      document.getElementById("total").innerText = totalHarga.toLocaleString("id-ID");
+      document.getElementById("total").innerText = totalHarga;
       hitungKembalian();
     }
 
-    function hapusItem(i) {
-      pesanan.splice(i, 1);
-      renderPesanan();
+    function hapusItem(i){ pesanan.splice(i,1); renderPesanan(); }
+    function resetPesanan(){
+      pesanan=[]; renderPesanan();
+      document.getElementById("bayar").value="";
+      document.getElementById("kembalian").innerText="0";
+      closePopup("resetPopup");
     }
 
     function hitungKembalian() {
-      const bayar = parseInt(document.getElementById("bayar").value) || 0;
-      const diskon = parseInt(document.getElementById("diskon").value) || 0;
-      const totalSetelahDiskon = totalHarga - diskon;
-      const kembalian = bayar - totalSetelahDiskon;
-      document.getElementById("kembalian").innerText = kembalian >= 0 ? kembalian.toLocaleString("id-ID") : 0;
-    }
-
-    function resetPesanan() {
-      pesanan = [];
-      renderPesanan();
-    }
-
-    function showNotif(msg) {
-      document.getElementById("notifMessage").innerText = msg;
-      openPopup("notifPopup");
-    }
-
-    function openPopup(id) {
-      document.getElementById(id).style.display = "flex";
-    }
-
-    function closePopup(id) {
-      document.getElementById(id).style.display = "none";
-    }
-
-    function showSpinner(s) {
-      document.getElementById("spinner").style.display = s ? "block" : "none";
+      const bayar = parseInt(document.getElementById("bayar").value)||0;
+      const kembalian = bayar - totalHarga;
+      document.getElementById("kembalian").innerText = kembalian >= 0 ? kembalian : 0;
     }
 
     function konfirmasiBayar() {
-      if (pesanan.length === 0) {
-        showNotif("Belum ada pesanan.");
-        return;
+      if (pesanan.length===0) return openNotif("Belum ada pesanan!");
+      const bayar = parseInt(document.getElementById("bayar").value)||0;
+      if (bayar<=0) return openNotif("Masukkan jumlah bayar!");
+      openPopup('cetakPopup');
+    }
+
+    async function lanjutBayar(cetak) {
+      closePopup('cetakPopup');
+      showSpinner(true);
+      const idTransaksi = crypto.randomUUID();
+      const diskon = parseInt(document.getElementById("diskon").value)||0;
+      for (let p of pesanan) {
+        await supabase.from("transaksi_item").insert([{
+          id_transaksi: idTransaksi,
+          kasir,
+          menu: p.nama,
+          jumlah: p.jumlah,
+          harga: p.harga,
+          subtotal: p.harga*p.jumlah,
+          jenis: "penjualan"
+        }]);
       }
-      showNotif("Pembayaran berhasil!");
+      showSpinner(false);
+
+      if (cetak) {
+        const bayar = parseInt(document.getElementById("bayar").value)||0;
+        const totalAkhir = totalHarga - diskon;
+        const kembalian = bayar - totalAkhir;
+        const waktu = new Date().toLocaleString("id-ID");
+
+        const textStruk = formatThermalReceipt(idTransaksi, waktu, kasir, pesanan.slice(),
+          totalHarga, diskon, bayar, kembalian);
+        const ok = printThermal(textStruk);
+        openNotif(ok ? "Perintah cetak dikirim ke RawBT" : "Gagal mengirim ke printer");
+      } else {
+        openNotif("Transaksi tersimpan!");
+      }
       resetPesanan();
     }
 
-    function logout() {
-      sessionStorage.clear();
-      window.location.href = "index.html";
+    function padCenter(text, width=32) { if (!text) return ''.padEnd(width,' '); if (text.length >= width) return text; const left = Math.floor((width - text.length)/2); const right = width - text.length - left; return ' '.repeat(left) + text + ' '.repeat(right); }
+    function padRight(text, width=32) { text = String(text); if (text.length >= width) return text; return text + ' '.repeat(width - text.length); }
+    function formatCurrency(num) { return 'Rp ' + Number(num || 0).toLocaleString('id-ID'); }
+
+    function formatThermalReceipt(idTransaksi, waktu, kasirName, items, total, diskon, bayar, kembalian) {
+      let lines = [];
+      lines.push(padCenter(namaResto.toUpperCase()));
+      lines.push(padCenter("=== STRUK PEMBAYARAN ==="));
+      lines.push("");
+      lines.push("Kasir : " + kasirName);
+      lines.push("Waktu : " + waktu);
+      lines.push("ID    : " + idTransaksi);
+      lines.push("--------------------------------");
+      items.forEach(it=>{
+        const nama = it.nama.length>20 ? it.nama.substring(0,20) : it.nama;
+        const subtotal = formatCurrency(it.harga * it.jumlah);
+        lines.push(nama);
+        lines.push(` ${it.jumlah} x ${formatCurrency(it.harga)} = ${subtotal}`);
+      });
+      lines.push("--------------------------------");
+      lines.push(padRight("Total :",16) + padRight(formatCurrency(total),16));
+      lines.push(padRight("Diskon :",16) + padRight(formatCurrency(diskon),16));
+      lines.push(padRight("Bayar :",16) + padRight(formatCurrency(bayar),16));
+      lines.push(padRight("Kembali :",16) + padRight(formatCurrency(kembalian),16));
+      lines.push("--------------------------------");
+      lines.push(padCenter("Terima kasih atas kunjungan Anda!"));
+      lines.push(padCenter("Powered by KasirApp"));
+      lines.push("\n\n\n");
+      return lines.join("\n");
     }
+
+    function printThermal(text) {
+      const blob = new Blob([text], {type: 'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const printURL = "rawbt:" + url;
+      window.location.href = printURL;
+      return true;
+    }
+
+    async function simpanPengeluaran() {
+      const ket = document.getElementById("ketPengeluaran").value.trim();
+      const jumlah = parseInt(document.getElementById("jumlahPengeluaran").value)||0;
+      const harga = parseInt(document.getElementById("hargaPengeluaran").value)||0;
+      if (!ket || jumlah<=0 || harga<=0) return openNotif("Lengkapi data pengeluaran!");
+      showSpinner(true);
+      const { error } = await supabase.from("transaksi_item").insert([{
+        id_transaksi: crypto.randomUUID(),
+        kasir,
+        menu: ket,
+        jumlah,
+        harga,
+        subtotal: jumlah*harga,
+        jenis: "pengeluaran"
+      }]);
+      showSpinner(false);
+      if (error) return openNotif("Gagal simpan pengeluaran!");
+      openNotif("Pengeluaran disimpan!");
+      closePopup("pengeluaranPopup");
+      document.getElementById("ketPengeluaran").value="";
+      document.getElementById("jumlahPengeluaran").value="";
+      document.getElementById("hargaPengeluaran").value="";
+    }
+
+    function openPopup(id){ document.getElementById(id).style.display='flex'; }
+    function closePopup(id){ document.getElementById(id).style.display='none'; }
+    function openNotif(msg){ document.getElementById("notifMessage").innerText = msg; openPopup('notifPopup'); }
+    function showSpinner(show){ document.getElementById("spinner").style.display = show?'block':'none'; }
   </script>
 </body>
 </html>
