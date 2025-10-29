@@ -48,6 +48,45 @@ input, select { padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:
   .container { padding:12px; }
   table { font-size:13px; }
 }
+
+/* =======================
+   TAMBAHAN CSS UNTUK DETAIL PER TRANSAKSI (EXPAND / COLLAPSE)
+   ======================= */
+.transaksi-row {
+  background: #f0f8ff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.transaksi-row:hover {
+  background: #e6f3ff;
+}
+.toggle-icon {
+  display: inline-block;
+  width: 20px;
+  font-weight: bold;
+  color: #0074d9;
+  margin-right:6px;
+}
+.detail-row {
+  background: #fafafa;
+}
+.sub-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+.sub-table th, .sub-table td {
+  border: 1px solid #ddd;
+  padding: 4px 6px;
+  text-align: left;
+}
+.sub-table th {
+  background: #f5f5f5;
+}
+/* smaller font for subtable cells on small screens */
+@media (max-width:600px){
+  .sub-table th, .sub-table td { font-size:12px; padding:3px; }
+}
 </style>
 </head>
 <body>
@@ -127,12 +166,12 @@ input, select { padding:6px; margin:4px 0; border:1px solid #ccc; border-radius:
     <tbody id="tabel-total"></tbody>
   </table>
 
-  <!-- Tabel Detail -->
+  <!-- Tabel Detail (DITERAPKAN: per transaksi, expand/collapse) -->
   <h2>Detail Transaksi</h2>
   <table>
     <thead>
       <tr>
-        <th>Tanggal</th><th>Kasir</th><th>Menu/Keterangan</th>
+        <th>Tanggal</th><th>Kasir</th><th>Transaksi (ID)</th>
         <th>Harga</th><th>Jenis</th><th>Subtotal</th><th>Aksi</th>
       </tr>
     </thead>
@@ -462,7 +501,9 @@ async function loadTotal() {
   finally { hideLoading(); }
 }
 
-// DETAIL (filter tanggal)
+// ========================
+// DETAIL (filter tanggal) - DIUBAH: tampil per transaksi (expand/collapse)
+// ========================
 async function loadDetail(){
   showLoading();
   try {
@@ -474,25 +515,131 @@ async function loadDetail(){
       .lte("created_at", end.toISOString())
       .order("created_at",{ascending:false});
     const tbody=document.getElementById("tabel-detail"); tbody.innerHTML="";
-    if (error) { console.error(error); const tr = document.createElement("tr"); tr.innerHTML = `<td colspan=7>Terjadi kesalahan saat memuat detail</td>`; tbody.appendChild(tr); return; }
+    if (error) { console.error(error); const tr = document.createElement("tr"); tr.innerHTML = `<td colspan=7>Terjadi kesalahan saat memuat detail</td>`; tbody.appendChild(tr); hideLoading(); return; }
     if (!data || data.length===0) { const tr = document.createElement("tr"); tr.innerHTML = `<td colspan=7">Tidak ada transaksi pada rentang ini</td>`; tbody.appendChild(tr); hideLoading(); return; }
-    data.forEach(t=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${new Date(t.created_at).toLocaleDateString("id-ID")}</td>
-      <td>${escapeHtml(t.kasir||'')}</td><td>${escapeHtml(t.menu||'')}</td><td>Rp ${Number(t.harga).toLocaleString()}</td>
-      <td>${t.jenis}</td><td>Rp ${Number(t.subtotal).toLocaleString()}</td>
-      <td><button class="hapus-detail">Hapus</button></td>`;
-      tr.querySelector(".hapus-detail").addEventListener("click",()=>{
-        showConfirm("Hapus transaksi", "Hapus transaksi ini?").then(async ok=>{
-          if(!ok) return;
+
+    // Group by id_transaksi
+    const grouped = {};
+    data.forEach(item => {
+      const key = item.id_transaksi || (`#${item.id}`);
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(item);
+    });
+
+    // Render per transaksi: main row + hidden detail row
+    for (const [idTrans, items] of Object.entries(grouped)) {
+      // compute total for this transaction
+      let totalTrans = 0;
+      items.forEach(it => { totalTrans += Number(it.subtotal || 0); });
+
+      // use kasir & date from first item (most recent order)
+      const first = items[0];
+      const tanggalDisplay = first.created_at ? new Date(first.created_at).toLocaleDateString("id-ID") : "";
+      const kasir = first.kasir || "";
+
+      // Main row (matches original table columns: Tanggal | Kasir | Menu/Keterangan | Harga | Jenis | Subtotal | Aksi)
+      const mainRow = document.createElement("tr");
+      mainRow.classList.add("transaksi-row");
+      mainRow.innerHTML = `
+        <td style="text-align:left;">
+          <span class="toggle-icon">▶</span>
+          ${tanggalDisplay}
+        </td>
+        <td style="text-align:left;">${escapeHtml(kasir)}</td>
+        <td style="text-align:left;"><strong>${escapeHtml(idTrans)}</strong></td>
+        <td>Rp ${Number(totalTrans).toLocaleString()}</td>
+        <td>-</td>
+        <td>Rp ${Number(totalTrans).toLocaleString()}</td>
+        <td>
+          <button class="hapus-transaksi">Hapus</button>
+        </td>
+      `;
+
+      // Detail row (hidden by default) with sub-table listing items in transaction
+      const detailRow = document.createElement("tr");
+      detailRow.classList.add("detail-row");
+      detailRow.style.display = 'none';
+      const detailCell = document.createElement("td");
+      detailCell.colSpan = 7;
+      detailCell.style.textAlign = "left";
+      detailCell.innerHTML = `
+        <div style="padding:8px 0;">
+          <table class="sub-table">
+            <thead>
+              <tr>
+                <th>Nama Menu / Keterangan</th>
+                <th>Jumlah</th>
+                <th>Harga</th>
+                <th>Subtotal</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(i => `
+                <tr>
+                  <td>${escapeHtml(i.menu || '')}</td>
+                  <td>${i.jumlah ?? 1}</td>
+                  <td>Rp ${Number(i.harga || 0).toLocaleString()}</td>
+                  <td>Rp ${Number(i.subtotal || 0).toLocaleString()}</td>
+                  <td><button class="hapus-item" data-itemid="${i.id}">Hapus</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+      detailRow.appendChild(detailCell);
+
+      // append rows
+      tbody.appendChild(mainRow);
+      tbody.appendChild(detailRow);
+
+      // Toggle expand/collapse
+      const icon = mainRow.querySelector('.toggle-icon');
+      mainRow.addEventListener('click', () => {
+        const isHidden = detailRow.style.display === 'none';
+        detailRow.style.display = isHidden ? '' : 'none';
+        icon.textContent = isHidden ? '▼' : '▶';
+      });
+
+      // Hapus seluruh transaksi (berdasarkan id_transaksi)
+      mainRow.querySelector('.hapus-transaksi').addEventListener('click', async (ev) => {
+        ev.stopPropagation(); // jangan trigger expand
+        const ok = await showConfirm("Hapus transaksi", `Hapus seluruh transaksi dengan ID "${idTrans}"?`);
+        if (!ok) return;
+        showLoading();
+        try {
+          const { error: delErr } = await supabase.from("transaksi_item").delete().eq("id_transaksi", idTrans);
+          if (delErr) { console.error(delErr); await showInfo("Error", "Gagal menghapus transaksi."); }
+          await loadDetail(); await loadTotal();
+        } catch(err) {
+          console.error(err);
+          await showInfo("Error", "Gagal menghapus transaksi.");
+        } finally { hideLoading(); }
+      });
+
+      // attach event listeners for hapus per item in sub-table
+      // use delegation: find buttons we just added inside detailCell
+      const itemButtons = detailCell.querySelectorAll('.hapus-item');
+      itemButtons.forEach(btn => {
+        btn.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          const itemId = btn.getAttribute('data-itemid');
+          const ok = await showConfirm("Hapus item", "Hapus item ini?");
+          if (!ok) return;
           showLoading();
-          const { error: delErr } = await supabase.from("transaksi_item").delete().eq("id",t.id);
-          if (delErr) { console.error(delErr); await showInfo("Error","Gagal menghapus transaksi."); }
-          hideLoading(); await loadDetail(); await loadTotal();
+          try {
+            const { error: delErr } = await supabase.from("transaksi_item").delete().eq("id", itemId);
+            if (delErr) { console.error(delErr); await showInfo("Error","Gagal menghapus item."); }
+            await loadDetail(); await loadTotal();
+          } catch(err) {
+            console.error(err);
+            await showInfo("Error","Gagal menghapus item.");
+          } finally { hideLoading(); }
         });
       });
-      tbody.appendChild(tr);
-    });
+    }
+
   } catch(err){ console.error(err); await showInfo("Error","Gagal memuat detail transaksi."); }
   finally { hideLoading(); }
 }
